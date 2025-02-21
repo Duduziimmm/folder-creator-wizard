@@ -19,7 +19,24 @@ const LoginForm = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/analyst');
+        // Verifica se o usuário é admin
+        const { data: isAdmin } = await supabase.rpc('has_role', {
+          role_to_check: 'admin'
+        });
+
+        if (isAdmin) {
+          navigate('/admin/members');
+          return;
+        }
+
+        // Se não for admin, verifica a role do usuário
+        const { data: userRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+
+        navigate(userRole?.role === 'coordinator' ? '/coordinator' : '/analyst');
       }
     };
     checkAuth();
@@ -54,11 +71,29 @@ const LoginForm = () => {
       }
 
       if (data.user) {
+        // Verifica se o usuário é admin
+        const { data: isAdmin } = await supabase.rpc('has_role', {
+          role_to_check: 'admin'
+        });
+
         toast({
           title: "Login realizado com sucesso",
           description: "Bem-vindo de volta!"
         });
-        navigate('/analyst'); // Redireciona para o dashboard do analista após o login
+
+        if (isAdmin) {
+          navigate('/admin/members');
+          return;
+        }
+
+        // Se não for admin, verifica a role do usuário
+        const { data: userRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+
+        navigate(userRole?.role === 'coordinator' ? '/coordinator' : '/analyst');
       }
     } catch (error) {
       toast({
