@@ -69,27 +69,22 @@ const MembersManagement = () => {
 
     setIsLoading(true);
     try {
-      // Primeiro, verifica se o usuário já existe
-      const { data: existingUser, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', newMemberEmail)
-        .single();
+      // Criar novo usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(newMemberEmail);
 
-      if (userError || !existingUser) {
-        toast({
-          variant: "destructive",
-          title: "Usuário não encontrado",
-          description: "Este email não está registrado no sistema."
-        });
-        return;
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error("Erro ao criar usuário");
       }
 
       // Adiciona a role ao usuário
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert([{
-          user_id: existingUser.id,
+          user_id: authData.user.id,
           role: newMemberRole as "admin" | "coordinator" | "analyst"
         }]);
 
@@ -97,17 +92,18 @@ const MembersManagement = () => {
 
       toast({
         title: "Membro adicionado",
-        description: "O novo membro foi adicionado com sucesso!"
+        description: "O novo membro foi adicionado com sucesso! Um email foi enviado para criação da senha."
       });
 
       setNewMemberEmail('');
       setNewMemberRole('analyst');
       loadMembers();
     } catch (error: any) {
+      console.error('Error adding member:', error);
       toast({
         variant: "destructive",
         title: "Erro ao adicionar membro",
-        description: error.message
+        description: error.message || "Ocorreu um erro ao adicionar o membro."
       });
     } finally {
       setIsLoading(false);
