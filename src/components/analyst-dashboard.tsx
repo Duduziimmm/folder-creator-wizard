@@ -37,7 +37,7 @@ const AnalystDashboard = () => {
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [configId, setConfigId] = useState<string | null>(null);
 
-  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/api/v3';
+  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3';
 
   useEffect(() => {
     loadConfiguration();
@@ -179,17 +179,17 @@ const AnalystDashboard = () => {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey,
-          'Content-Type': 'application/json'
-        },
-        mode: 'cors'
+          'access_token': apiKey
+        }
       });
 
       if (!response.ok) {
         throw new Error('Erro ao consultar dados do cliente');
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log('Dados do cliente:', data);
+      return data;
     } catch (error) {
       console.error('Erro ao buscar detalhes do cliente:', error);
       throw error;
@@ -288,10 +288,8 @@ const AnalystDashboard = () => {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey,
-          'Content-Type': 'application/json'
-        },
-        mode: 'cors'
+          'access_token': apiKey
+        }
       });
 
       console.log('Status da resposta:', response.status);
@@ -314,25 +312,34 @@ const AnalystDashboard = () => {
       }
 
       const responseData = JSON.parse(responseText);
+      console.log('Dados dos pagamentos:', responseData);
 
+      const processedPayments = [];
       for (const payment of responseData.data) {
         try {
+          console.log('Processando pagamento:', payment.id);
           const customerData = await fetchCustomerDetails(payment.customer, apiKey);
           await savePaymentRecord(payment, customerData);
+          processedPayments.push({
+            id: payment.id,
+            value: payment.value,
+            dueDate: payment.dueDate,
+            status: payment.status,
+            customer: customerData.name || payment.customer
+          });
         } catch (error) {
           console.error(`Erro ao processar pagamento ${payment.id}:`, error);
+          processedPayments.push({
+            id: payment.id,
+            value: payment.value,
+            dueDate: payment.dueDate,
+            status: payment.status,
+            customer: payment.customer
+          });
         }
       }
 
-      const formattedData = responseData.data.map((payment: any) => ({
-        id: payment.id,
-        value: payment.value,
-        dueDate: payment.dueDate,
-        status: payment.status,
-        customer: payment.customer
-      }));
-
-      setBoletos(formattedData);
+      setBoletos(processedPayments);
       
       toast({
         title: "Sucesso",
@@ -347,10 +354,6 @@ const AnalystDashboard = () => {
       let errorMessage = "Erro ao consultar boletos. ";
       if (error instanceof Error) {
         errorMessage += error.message;
-        
-        if (error.message.includes('Failed to fetch')) {
-          errorMessage += "\nPossível erro de CORS. Verifique se a API está acessível e permite requisições do nosso domínio.";
-        }
       }
 
       toast({
