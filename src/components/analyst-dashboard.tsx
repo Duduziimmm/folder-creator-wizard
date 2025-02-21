@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -184,10 +185,15 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/payments`, {
+      const queryParams = new URLSearchParams({
+        'dueDate[ge]': selectedDate,
+        'dueDate[le]': selectedDate
+      });
+
+      const response = await fetch(`${apiBaseUrl}/payments?${queryParams}`, {
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey.startsWith('$') ? apiKey.substring(1) : apiKey
+          'access_token': apiKey
         }
       });
 
@@ -203,7 +209,7 @@ const AnalystDashboard = () => {
         await supabase.from('api_logs').insert([{
           user_id: user.id,
           api_configuration_id: configId,
-          request_url: `${apiBaseUrl}/payments`,
+          request_url: `${apiBaseUrl}/payments?${queryParams}`,
           request_method: 'GET',
           response_status: response.status,
           response_body: JSON.stringify(responseData)
