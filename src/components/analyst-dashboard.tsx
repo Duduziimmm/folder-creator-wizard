@@ -38,15 +38,8 @@ const AnalystDashboard = () => {
   const [configId, setConfigId] = useState<string | null>(null);
 
   const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3';
-  const SUPABASE_URL = "https://jbukjobmomhawctjdqaf.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpidWtqb2Jtb21oYXdjdGpkcWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAxNDcyNzcsImV4cCI6MjA1NTcyMzI3N30.u8rXIdoGSesTl_gGjso6riWkXrBk2KF4AlwiPyoscfI";
 
   useEffect(() => {
-    console.log('Verificando variáveis de ambiente:', {
-      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-      hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
-    });
-    
     loadConfiguration();
     loadApiLogs();
   }, []);
@@ -204,40 +197,49 @@ const AnalystDashboard = () => {
         }
       }
 
-      const logData = {
+      console.log('Tentando salvar log com dados:', {
         user_id: user.id,
         api_configuration_id: currentConfigId,
         request_url: url,
         request_method: method,
         response_status: status,
         response_body: responseBody
-      };
+      });
 
-      console.log('Tentando salvar log com dados:', logData);
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('api_logs')
-        .insert(logData);
+        .insert([{
+          user_id: user.id,
+          api_configuration_id: currentConfigId,
+          request_url: url,
+          request_method: method,
+          response_status: status,
+          response_body: responseBody
+        }])
+        .select();
 
       if (error) {
         console.error('Erro ao salvar log:', error);
         throw error;
       }
 
-      console.log('Log salvo com sucesso');
+      console.log('Log salvo com sucesso:', data);
+      
       await loadApiLogs();
+      
+      return data;
     } catch (error) {
       console.error('Erro ao salvar log:', error);
-      toast({
-        title: "Erro ao salvar log",
-        description: "Não foi possível registrar a consulta.",
-        variant: "destructive",
-      });
+      throw error;
     }
   };
 
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
     console.log(`Consultando cliente no ambiente: ${isProd ? 'Produção' : 'Sandbox'}`);
+    console.log('URL base:', apiBaseUrl);
+    console.log('Customer ID:', customerId);
+    
+    const customerRequestUrl = `${apiBaseUrl}/customers/${customerId}`;
     
     try {
       const response = await fetch(
@@ -246,7 +248,6 @@ const AnalystDashboard = () => {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
             'access_token': apiKey,
             'asaas-environment': isProd ? 'prod' : 'sandbox',
             'request-type': 'customer',
@@ -255,27 +256,39 @@ const AnalystDashboard = () => {
         }
       );
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Resposta não é JSON:', contentType);
+      const responseText = await response.text();
+      console.log('Resposta da consulta do cliente:', responseText);
+
+      try {
+        await saveApiLog(
+          customerRequestUrl,
+          'GET',
+          response.status,
+          responseText
+        );
+        console.log('Log da consulta do cliente salvo com sucesso');
+      } catch (logError) {
+        console.error('Erro ao salvar log da consulta do cliente:', logError);
+        toast({
+          variant: "destructive",
+          title: "Aviso",
+          description: "Erro ao salvar o log da consulta do cliente.",
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Erro ao consultar dados do cliente: ${responseText}`);
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
         throw new Error('Resposta inválida do servidor');
       }
 
-      const data = await response.json();
-      console.log('Resposta do cliente:', data);
-
-      if (!response.ok) {
-        console.error('Erro na resposta do cliente:', data);
-        throw new Error(data.error || 'Erro ao consultar dados do cliente');
-      }
-
-      await saveApiLog(
-        `${apiBaseUrl}/customers/${customerId}`,
-        'GET',
-        response.status,
-        JSON.stringify(data)
-      );
-
+      console.log('Dados do cliente:', data);
       return data;
     } catch (error) {
       console.error('Erro ao buscar detalhes do cliente:', error);
@@ -319,38 +332,15 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     console.log('Iniciando consulta de boletos...');
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    console.log('Detalhes da requisição:', {
-      supabaseUrl,
-      hasAnonKey: !!supabaseAnonKey,
-      selectedDate,
-      isProd,
-      configId
-    });
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('Variáveis de ambiente não configuradas:', { supabaseUrl, supabaseAnonKey });
-      toast({
-        title: "Erro de Configuração",
-        description: "Erro nas configurações do ambiente. Por favor, contate o suporte.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
     const requestUrl = `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
 
     try {
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/asaas-proxy`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             'access_token': apiKey,
             'asaas-environment': isProd ? 'prod' : 'sandbox',
             'request-type': 'payments',
@@ -359,41 +349,40 @@ const AnalystDashboard = () => {
         }
       );
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Resposta não é JSON:', contentType);
-        const text = await response.text();
-        console.error('Conteúdo da resposta:', text);
-        
+      console.log('Status da resposta dos boletos:', response.status);
+      const responseText = await response.text();
+      console.log('Resposta da API de boletos:', responseText);
+
+      try {
         await saveApiLog(
           requestUrl,
           'GET',
           response.status,
-          text
+          responseText
         );
-        
-        throw new Error('Resposta inválida do servidor. Por favor, tente novamente.');
+        console.log('Log da consulta de boletos salvo com sucesso');
+      } catch (logError) {
+        console.error('Erro ao salvar log dos boletos:', logError);
+        toast({
+          title: "Aviso",
+          description: "A consulta foi realizada, mas houve um erro ao salvar o histórico.",
+          variant: "destructive",
+        });
       }
-
-      const responseData = await response.json();
-      console.log('Resposta dos boletos:', responseData);
 
       if (!response.ok) {
-        await saveApiLog(
-          requestUrl,
-          'GET',
-          response.status,
-          JSON.stringify(responseData)
-        );
-        throw new Error(responseData.error || 'Erro ao consultar boletos');
+        throw new Error(`Erro ao consultar a API: ${responseText}`);
       }
 
-      await saveApiLog(
-        requestUrl,
-        'GET',
-        response.status,
-        JSON.stringify(responseData)
-      );
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+
+      console.log('Dados dos pagamentos:', responseData);
 
       if (!responseData.data || !Array.isArray(responseData.data)) {
         throw new Error('Formato de resposta inválido');
@@ -403,58 +392,8 @@ const AnalystDashboard = () => {
       for (const payment of responseData.data) {
         try {
           console.log('Processando pagamento:', payment.id);
-          const customerResponse = await fetch(
-            `${SUPABASE_URL}/functions/v1/asaas-proxy`,
-            {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-                'access_token': apiKey,
-                'asaas-environment': isProd ? 'prod' : 'sandbox',
-                'request-type': 'customer',
-                'customer-id': payment.customer
-              }
-            }
-          );
-
-          const customerContentType = customerResponse.headers.get('content-type');
-          if (!customerContentType || !customerContentType.includes('application/json')) {
-            console.error('Resposta do cliente não é JSON:', customerContentType);
-            const text = await customerResponse.text();
-            console.error('Conteúdo da resposta do cliente:', text);
-            
-            await saveApiLog(
-              `${apiBaseUrl}/customers/${payment.customer}`,
-              'GET',
-              customerResponse.status,
-              text
-            );
-            
-            throw new Error('Resposta inválida ao consultar cliente');
-          }
-
-          const customerData = await customerResponse.json();
-          
-          if (!customerResponse.ok) {
-            await saveApiLog(
-              `${apiBaseUrl}/customers/${payment.customer}`,
-              'GET',
-              customerResponse.status,
-              JSON.stringify(customerData)
-            );
-            throw new Error(customerData.error || 'Erro ao consultar cliente');
-          }
-
-          await saveApiLog(
-            `${apiBaseUrl}/customers/${payment.customer}`,
-            'GET',
-            customerResponse.status,
-            JSON.stringify(customerData)
-          );
-
+          const customerData = await fetchCustomerDetails(payment.customer, apiKey);
           await savePaymentRecord(payment, customerData);
-          
           processedPayments.push({
             id: payment.id,
             value: payment.value,
@@ -464,12 +403,19 @@ const AnalystDashboard = () => {
           });
         } catch (error) {
           console.error(`Erro ao processar pagamento ${payment.id}:`, error);
+          
           processedPayments.push({
             id: payment.id,
             value: payment.value,
             dueDate: payment.dueDate,
             status: payment.status,
             customer: payment.customer
+          });
+          
+          toast({
+            title: "Aviso",
+            description: `Erro ao buscar dados do cliente ${payment.customer}`,
+            variant: "destructive",
           });
         }
       }
@@ -478,15 +424,22 @@ const AnalystDashboard = () => {
       
       toast({
         title: "Sucesso",
-        description: "Boletos consultados com sucesso!",
+        description: "Boletos consultados e dados salvos com sucesso!",
       });
+
+      await loadApiLogs();
 
     } catch (error) {
       console.error('Erro completo na requisição:', error);
       
+      let errorMessage = "Erro ao consultar boletos. ";
+      if (error instanceof Error) {
+        errorMessage += error.message;
+      }
+
       toast({
         title: "Erro",
-        description: error.message || "Erro ao consultar boletos",
+        description: errorMessage,
         variant: "destructive",
       });
       setBoletos([]);
