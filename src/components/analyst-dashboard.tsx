@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -188,11 +187,13 @@ const AnalystDashboard = () => {
       const response = await fetch(`${apiBaseUrl}/payments`, {
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey,
-          'Content-Type': 'application/json'
-        },
-        method: 'GET'
+          'access_token': apiKey.startsWith('$') ? apiKey.substring(1) : apiKey
+        }
       });
+
+      if (!response.ok) {
+        throw new Error('Erro ao consultar a API');
+      }
 
       const responseData = await response.json();
       
@@ -212,10 +213,6 @@ const AnalystDashboard = () => {
         loadApiLogs();
       }
 
-      if (!response.ok) {
-        throw new Error('Erro ao consultar a API');
-      }
-
       const formattedData = responseData.data.map((payment: any) => ({
         id: payment.id,
         value: payment.value,
@@ -230,6 +227,7 @@ const AnalystDashboard = () => {
         description: "Boletos consultados com sucesso!",
       });
     } catch (error) {
+      console.error('Erro na requisição:', error);
       toast({
         title: "Erro",
         description: "Erro ao consultar boletos. Verifique suas configurações.",
