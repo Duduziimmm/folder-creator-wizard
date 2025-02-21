@@ -15,6 +15,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url)
     const dueDate = url.searchParams.get('dueDate')
+    const customerId = url.searchParams.get('customerId')
     const environment = req.headers.get('asaas-environment') || 'sandbox'
     const accessToken = req.headers.get('access_token')
 
@@ -32,11 +33,50 @@ serve(async (req) => {
       ? 'https://api.asaas.com/v3'
       : 'https://api-sandbox.asaas.com/v3'
 
-    console.log(`Fazendo requisição para ${apiBaseUrl}/payments com dueDate=${dueDate}`)
+    // Se tiver customerId, consulta dados do cliente
+    if (customerId) {
+      console.log(`Consultando dados do cliente ${customerId}`)
+      const customerUrl = `${apiBaseUrl}/customers/${customerId}`
+      
+      const customerResponse = await fetch(customerUrl, {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json',
+          'access_token': accessToken
+        }
+      })
 
-    const apiUrl = `${apiBaseUrl}/payments?dueDate[ge]=${dueDate}&dueDate[le]=${dueDate}`
+      if (!customerResponse.ok) {
+        throw new Error(`Erro ao consultar cliente: ${customerResponse.status}`)
+      }
+
+      const customerData = await customerResponse.json()
+      console.log('Dados do cliente:', customerData)
+
+      return new Response(
+        JSON.stringify(customerData),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: customerResponse.status
+        }
+      )
+    }
+
+    // Se não tiver customerId, consulta cobranças por data
+    if (!dueDate) {
+      return new Response(
+        JSON.stringify({ error: 'Data de vencimento não fornecida' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    console.log(`Consultando cobranças para a data ${dueDate}`)
+    const paymentsUrl = `${apiBaseUrl}/payments?dueDate[ge]=${dueDate}&dueDate[le]=${dueDate}`
     
-    const response = await fetch(apiUrl, {
+    const paymentsResponse = await fetch(paymentsUrl, {
       method: 'GET',
       headers: {
         'accept': 'application/json',
@@ -44,17 +84,18 @@ serve(async (req) => {
       }
     })
 
-    const data = await response.json()
-    console.log('Resposta da API Asaas:', data)
+    if (!paymentsResponse.ok) {
+      throw new Error(`Erro ao consultar cobranças: ${paymentsResponse.status}`)
+    }
+
+    const paymentsData = await paymentsResponse.json()
+    console.log('Dados das cobranças:', paymentsData)
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(paymentsData),
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json'
-        },
-        status: response.status
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: paymentsResponse.status
       }
     )
   } catch (error) {

@@ -175,15 +175,17 @@ const AnalystDashboard = () => {
 
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/customers/${customerId}`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'access_token': apiKey,
-          'Content-Type': 'application/json'
-        },
-        mode: 'cors'
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy?customerId=${customerId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'access_token': apiKey,
+            'asaas-environment': isProd ? 'prod' : 'sandbox'
+          }
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Erro ao consultar dados do cliente');
