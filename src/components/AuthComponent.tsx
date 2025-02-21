@@ -24,6 +24,18 @@ const AuthComponent = ({ children, requiredRole }: Props) => {
           return;
         }
 
+        // Verificar se o perfil está completo
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('completed_profile')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile?.completed_profile && window.location.pathname !== '/complete-profile') {
+          navigate('/complete-profile', { replace: true });
+          return;
+        }
+
         // Verifica se o usuário é admin
         const { data: isAdmin } = await supabase.rpc('has_role', {
           role_to_check: 'admin'
