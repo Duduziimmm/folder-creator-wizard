@@ -197,38 +197,35 @@ const AnalystDashboard = () => {
         }
       }
 
-      console.log('Tentando salvar log com dados:', {
+      const logData = {
         user_id: user.id,
         api_configuration_id: currentConfigId,
         request_url: url,
         request_method: method,
         response_status: status,
         response_body: responseBody
-      });
+      };
 
-      const { data, error } = await supabase
+      console.log('Tentando salvar log com dados:', logData);
+
+      const { error } = await supabase
         .from('api_logs')
-        .insert({
-          user_id: user.id,
-          api_configuration_id: currentConfigId,
-          request_url: url,
-          request_method: method,
-          response_status: status,
-          response_body: responseBody
-        })
-        .select();
+        .insert(logData);
 
       if (error) {
         console.error('Erro ao salvar log:', error);
         throw error;
       }
 
-      console.log('Log salvo com sucesso:', data);
+      console.log('Log salvo com sucesso');
       await loadApiLogs();
-      return data;
     } catch (error) {
       console.error('Erro ao salvar log:', error);
-      throw error;
+      toast({
+        title: "Erro ao salvar log",
+        description: "Não foi possível registrar a consulta.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -333,22 +330,15 @@ const AnalystDashboard = () => {
         }
       );
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Resposta não é JSON:', contentType);
-        throw new Error('Resposta inválida do servidor');
-      }
-
       const responseData = await response.json();
       console.log('Resposta dos boletos:', responseData);
 
       if (!response.ok) {
-        console.error('Erro na resposta dos boletos:', responseData);
         throw new Error(responseData.error || 'Erro ao consultar boletos');
       }
 
       await saveApiLog(
-        `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`,
+        requestUrl,
         'GET',
         response.status,
         JSON.stringify(responseData)
@@ -362,8 +352,32 @@ const AnalystDashboard = () => {
       for (const payment of responseData.data) {
         try {
           console.log('Processando pagamento:', payment.id);
-          const customerData = await fetchCustomerDetails(payment.customer, apiKey);
+          const customerResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'access_token': apiKey,
+                'asaas-environment': isProd ? 'prod' : 'sandbox',
+                'request-type': 'customer',
+                'customer-id': payment.customer
+              }
+            }
+          );
+
+          const customerData = await customerResponse.json();
+          
+          await saveApiLog(
+            `${apiBaseUrl}/customers/${payment.customer}`,
+            'GET',
+            customerResponse.status,
+            JSON.stringify(customerData)
+          );
+
           await savePaymentRecord(payment, customerData);
+          
           processedPayments.push({
             id: payment.id,
             value: payment.value,
@@ -373,7 +387,6 @@ const AnalystDashboard = () => {
           });
         } catch (error) {
           console.error(`Erro ao processar pagamento ${payment.id}:`, error);
-          
           processedPayments.push({
             id: payment.id,
             value: payment.value,
