@@ -34,6 +34,17 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
         return;
       }
 
+      // Buscar o user_id atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Preparar dados para enviar ao webhook
       const webhookData = {
         payment_id: boleto.id,
@@ -82,14 +93,17 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
       } else {
         await supabase
           .from('payment_records')
-          .insert([{
+          .insert({
             customer_id: boleto.id,
             customer_name: boleto.customer,
+            customer_email: boleto.email,
+            customer_phone: boleto.phone,
             payment_value: boleto.value,
             due_date: boleto.dueDate,
             webhook_send_count: 1,
-            last_webhook_send: new Date().toISOString()
-          }]);
+            last_webhook_send: new Date().toISOString(),
+            user_id: user.id // Adicionando o user_id obrigatório
+          });
       }
 
       toast({
