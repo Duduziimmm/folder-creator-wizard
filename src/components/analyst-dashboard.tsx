@@ -1,42 +1,73 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import BoletosTable from "./shared/boletos-table";
+import { supabase } from "@/integrations/supabase/client";
+import type { ApiConfiguration, ApiConfigurationInsert } from "@/types/api-configurations";
 
 interface Boleto {
   id: string;
   value: number;
   dueDate: string;
   status: string;
+  customer?: string;
+  billingType?: string;
+  invoiceUrl?: string;
 }
 
 const AnalystDashboard = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [selectedDate, setSelectedDate] = useState('2025-02-14');
   const [boletos, setBoletos] = useState<Boleto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isProd, setIsProd] = useState(false);
 
   const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/api/v3';
 
   useEffect(() => {
-    const savedApiKey = localStorage.getItem('asaasApiKey');
-    const savedWebhookUrl = localStorage.getItem('webhookUrl');
-    const savedIsProd = localStorage.getItem('isProd') === 'true';
-    
-    if (savedApiKey) setApiKey(savedApiKey);
-    if (savedWebhookUrl) setWebhookUrl(savedWebhookUrl);
-    setIsProd(savedIsProd);
-  }, []);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/login');
+        return;
+      }
+      loadConfiguration();
+    };
 
-  const handleSaveConfig = () => {
+    checkSession();
+  }, [navigate]);
+
+  const loadConfiguration = async () => {
+    try {
+      const { data: configs, error } = await supabase
+        .from('api_configurations')
+        .select('*')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading configurations:', error);
+        return;
+      }
+
+      if (configs) {
+        setApiKey(configs.api_key);
+        setWebhookUrl(configs.webhook_url);
+        setIsProd(configs.is_prod);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleSaveConfig = async () => {
     if (!apiKey || !webhookUrl) {
       toast({
         title: "Erro",
@@ -46,19 +77,66 @@ const AnalystDashboard = () => {
       return;
     }
 
-    localStorage.setItem('asaasApiKey', apiKey);
-    localStorage.setItem('webhookUrl', webhookUrl);
-    localStorage.setItem('isProd', isProd.toString());
+    setIsSaving(true);
+    try {
+      const { data: existingConfig } = await supabase
+        .from('api_configurations')
+        .select('*')
+        .maybeSingle();
 
-    toast({
-      title: "Sucesso",
-      description: "Configurações salvas com sucesso!",
-    });
+      const user = await supabase.auth.getUser();
+      const userId = user.data.user?.id;
+
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+
+      const configData: ApiConfigurationInsert = {
+        api_key: apiKey,
+        webhook_url: webhookUrl,
+        is_prod: isProd,
+        user_id: userId
+      };
+
+      let error;
+
+      if (existingConfig) {
+        // Update existing configuration
+        const { error: updateError } = await supabase
+          .from('api_configurations')
+          .update(configData)
+          .eq('id', existingConfig.id);
+        error = updateError;
+      } else {
+        // Insert new configuration
+        const { error: insertError } = await supabase
+          .from('api_configurations')
+          .insert([configData]);
+        error = insertError;
+      }
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Configurações salvas com sucesso!",
+      });
+    } catch (error) {
+      console.error('Error saving configuration:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar as configurações.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleEnvironmentChange = (checked: boolean) => {
+  const handleEnvironmentChange = async (checked: boolean) => {
     setIsProd(checked);
-    localStorage.setItem('isProd', checked.toString());
     setBoletos([]); // Limpa os boletos ao trocar de ambiente
     
     toast({
@@ -68,10 +146,12 @@ const AnalystDashboard = () => {
   };
 
   const handleQueryBoletos = async () => {
-    const savedApiKey = localStorage.getItem('asaasApiKey');
-    const savedWebhookUrl = localStorage.getItem('webhookUrl');
+    const { data: config } = await supabase
+      .from('api_configurations')
+      .select('*')
+      .maybeSingle();
 
-    if (!savedApiKey || !savedWebhookUrl) {
+    if (!config?.api_key || !config?.webhook_url) {
       toast({
         title: "Erro",
         description: "Configure primeiro a Chave API e Webhook URL nas configurações.",
@@ -85,7 +165,7 @@ const AnalystDashboard = () => {
       const response = await fetch(`${apiBaseUrl}/payments`, {
         headers: {
           'accept': 'application/json',
-          'access_token': savedApiKey,
+          'access_token': config.api_key,
           'Content-Type': 'application/json'
         },
         method: 'GET'
@@ -205,8 +285,9 @@ const AnalystDashboard = () => {
               <Button 
                 className="w-full bg-black text-white hover:bg-gray-800"
                 onClick={handleSaveConfig}
+                disabled={isSaving}
               >
-                Salvar Configurações
+                {isSaving ? "Salvando..." : "Salvar Configurações"}
               </Button>
             </div>
           </TabsContent>
