@@ -11,6 +11,8 @@ interface Boleto {
   dueDate: string;
   status: string;
   customer: string;
+  email?: string;
+  phone?: string;
 }
 
 interface BoletosTableProps {
@@ -45,6 +47,8 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
       const webhookData = {
         payment_id: boleto.id,
         customer: boleto.customer,
+        email: boleto.email,
+        phone: boleto.phone,
         value: boleto.value,
         due_date: boleto.dueDate,
         status: boleto.status,
@@ -98,11 +102,12 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[640px] table-auto">
+      <table className="w-full min-w-[800px] table-auto">
         <thead>
           <tr className="border-b border-gray-200">
-            <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Número</th>
-            <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Cliente</th>
+            <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Nome</th>
+            <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">E-mail</th>
+            <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Telefone</th>
             <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Valor</th>
             <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Vencimento</th>
             <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">Status</th>
@@ -112,8 +117,9 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
         <tbody>
           {boletos.map((boleto) => (
             <tr key={boleto.id} className="border-b border-gray-100 hover:bg-gray-50">
-              <td className="py-3 px-4 text-sm text-gray-600">{boleto.id}</td>
               <td className="py-3 px-4 text-sm text-gray-600">{boleto.customer}</td>
+              <td className="py-3 px-4 text-sm text-gray-600">{boleto.email || '-'}</td>
+              <td className="py-3 px-4 text-sm text-gray-600">{boleto.phone || '-'}</td>
               <td className="py-3 px-4 text-sm text-gray-600">
                 {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
