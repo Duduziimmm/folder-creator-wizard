@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import BoletosTable from "./shared/boletos-table";
 
 interface Boleto {
@@ -17,6 +17,7 @@ interface Boleto {
 
 const AnalystDashboard = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [selectedDate, setSelectedDate] = useState('2025-02-14');
@@ -35,6 +36,23 @@ const AnalystDashboard = () => {
     if (savedWebhookUrl) setWebhookUrl(savedWebhookUrl);
     setIsProd(savedIsProd);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logout realizado com sucesso",
+        description: "Até logo!"
+      });
+      navigate('/login');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao sair",
+        description: "Ocorreu um erro ao tentar fazer logout."
+      });
+    }
+  };
 
   const handleSaveConfig = () => {
     if (!apiKey || !webhookUrl) {
@@ -128,9 +146,13 @@ const AnalystDashboard = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold">Asaas Webhook Dashboard</h1>
-        <Link to="/login" className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
-          <span>Sair</span>
-        </Link>
+        <Button 
+          variant="ghost" 
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+        >
+          Sair
+        </Button>
       </div>
 
       <div className="mb-6">
