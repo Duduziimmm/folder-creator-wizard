@@ -22,13 +22,13 @@ const menuItems = [
   },
   {
     title: "Dashboard",
-    url: "/analyst",
-    icon: BarChart2,  // Corrigido: usando BarChart2 para Dashboard
+    url: "/admin/dashboard",
+    icon: BarChart2,
   },
   {
     title: "Coordenação",
-    url: "/coordinator",
-    icon: Settings,  // Corrigido: usando Settings para Coordenação
+    url: "/admin/coordinator",
+    icon: Settings,
   }
 ];
 
