@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "./ui/button";
@@ -13,6 +13,17 @@ const LoginForm = () => {
     email: '',
     password: ''
   });
+
+  useEffect(() => {
+    // Verifica se o usuário já está autenticado
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/analyst');
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -47,7 +58,7 @@ const LoginForm = () => {
           title: "Login realizado com sucesso",
           description: "Bem-vindo de volta!"
         });
-        navigate('/'); // Redireciona para a página inicial após o login
+        navigate('/analyst'); // Redireciona para o dashboard do analista após o login
       }
     } catch (error) {
       toast({
