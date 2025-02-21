@@ -156,7 +156,7 @@ const AnalystDashboard = () => {
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="font-medium text-lg mb-1">Ambiente de Sandbox</h3>
+                    <h3 className="font-medium text-lg mb-1">Ambiente de Integração</h3>
                     <p className="text-gray-500 text-sm">
                       {isProd ? 'Modo de produção ativo' : 'Modo de testes ativo - Usando API Sandbox'}
                     </p>
