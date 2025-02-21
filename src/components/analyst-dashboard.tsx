@@ -177,7 +177,7 @@ const AnalystDashboard = () => {
     const response = await fetch(`${apiBaseUrl}/customers/${customerId}`, {
       headers: {
         'accept': 'application/json',
-        'apikey': apiKey
+        'access_token': apiKey
       }
     });
 
@@ -229,14 +229,19 @@ const AnalystDashboard = () => {
         'dueDate[le]': selectedDate
       });
 
+      console.log('Fazendo requisição para:', `${apiBaseUrl}/payments?${queryParams}`);
+      console.log('Com API Key:', apiKey);
+
       const response = await fetch(`${apiBaseUrl}/payments?${queryParams}`, {
         headers: {
           'accept': 'application/json',
-          'apikey': apiKey
+          'access_token': apiKey
         }
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Erro na resposta da API:', errorText);
         throw new Error('Erro ao consultar a API');
       }
 
