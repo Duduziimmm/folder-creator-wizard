@@ -33,56 +33,73 @@ const AnalystDashboard = () => {
             <TabsTrigger value="config" className="px-6">Configurações</TabsTrigger>
             <TabsTrigger value="consultation" className="px-6">Consulta de Boletos</TabsTrigger>
           </TabsList>
-        </Tabs>
-      </div>
 
-      {/* Main Content */}
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <h2 className="text-2xl font-semibold mb-8">Configurações do Ambiente</h2>
+          <TabsContent value="config">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h2 className="text-2xl font-semibold mb-8">Configurações do Ambiente</h2>
 
-        {/* Sandbox Environment Switch */}
-        <div className="bg-gray-50 rounded-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="font-medium text-lg mb-1">Ambiente de Sandbox</h3>
-              <p className="text-gray-500 text-sm">Modo de testes ativo - Usando API Sandbox</p>
+              {/* Sandbox Environment Switch */}
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-lg mb-1">Ambiente de Sandbox</h3>
+                    <p className="text-gray-500 text-sm">Modo de testes ativo - Usando API Sandbox</p>
+                  </div>
+                  <Switch />
+                </div>
+              </div>
+
+              {/* API Base URL Info */}
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <div className="flex items-start gap-2">
+                  <span className="text-gray-500">ℹ️</span>
+                  <p>Ambiente de testes ativo. API Base: https://api-sandbox.asaas.com/api/v3</p>
+                </div>
+              </div>
+
+              {/* API Key Input */}
+              <div className="mb-6">
+                <label className="block text-lg font-medium mb-2">Chave API do Asaas</label>
+                <Input 
+                  type="text" 
+                  placeholder="Digite sua chave API do Sandbox"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Webhook URL Input */}
+              <div className="mb-8">
+                <label className="block text-lg font-medium mb-2">Webhook URL</label>
+                <Input 
+                  type="text" 
+                  placeholder="Digite a URL do Webhook"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Save Button */}
+              <Button className="w-full bg-black text-white hover:bg-gray-800">
+                Salvar Configurações
+              </Button>
             </div>
-            <Switch />
-          </div>
-        </div>
+          </TabsContent>
 
-        {/* API Base URL Info */}
-        <div className="bg-gray-50 rounded-lg p-6 mb-6">
-          <div className="flex items-start gap-2">
-            <span className="text-gray-500">ℹ️</span>
-            <p>Ambiente de testes ativo. API Base: https://api-sandbox.asaas.com/api/v3</p>
-          </div>
-        </div>
-
-        {/* API Key Input */}
-        <div className="mb-6">
-          <label className="block text-lg font-medium mb-2">Chave API do Asaas</label>
-          <Input 
-            type="text" 
-            placeholder="Digite sua chave API do Sandbox"
-            className="w-full"
-          />
-        </div>
-
-        {/* Webhook URL Input */}
-        <div className="mb-8">
-          <label className="block text-lg font-medium mb-2">Webhook URL</label>
-          <Input 
-            type="text" 
-            placeholder="Digite a URL do Webhook"
-            className="w-full"
-          />
-        </div>
-
-        {/* Save Button */}
-        <Button className="w-full bg-black text-white hover:bg-gray-800">
-          Salvar Configurações
-        </Button>
+          <TabsContent value="consultation">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h2 className="text-2xl font-semibold mb-8">Consulta de Boletos</h2>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="date"
+                  className="flex-1"
+                  defaultValue="2025-02-14"
+                />
+                <Button className="bg-black text-white hover:bg-gray-800 px-6">
+                  Consultar Boletos
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
