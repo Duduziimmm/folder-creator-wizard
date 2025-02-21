@@ -80,6 +80,42 @@ export type Database = {
           },
         ]
       }
+      payment_records: {
+        Row: {
+          consulted_at: string | null
+          customer_email: string | null
+          customer_id: string
+          customer_name: string
+          customer_phone: string | null
+          due_date: string
+          id: string
+          payment_value: number
+          user_id: string
+        }
+        Insert: {
+          consulted_at?: string | null
+          customer_email?: string | null
+          customer_id: string
+          customer_name: string
+          customer_phone?: string | null
+          due_date: string
+          id?: string
+          payment_value: number
+          user_id: string
+        }
+        Update: {
+          consulted_at?: string | null
+          customer_email?: string | null
+          customer_id?: string
+          customer_name?: string
+          customer_phone?: string | null
+          due_date?: string
+          id?: string
+          payment_value?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

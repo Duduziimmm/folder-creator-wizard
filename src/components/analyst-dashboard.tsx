@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +13,7 @@ interface Boleto {
   value: number;
   dueDate: string;
   status: string;
+  customer: string;
 }
 
 interface ApiLog {
@@ -173,6 +173,45 @@ const AnalystDashboard = () => {
     });
   };
 
+  const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
+    const response = await fetch(`${apiBaseUrl}/customers/${customerId}`, {
+      headers: {
+        'accept': 'application/json',
+        'apikey': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao consultar dados do cliente');
+    }
+
+    return response.json();
+  };
+
+  const savePaymentRecord = async (payment: any, customerData: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const paymentRecord = {
+      customer_id: customerData.id,
+      customer_name: customerData.name,
+      customer_email: customerData.email || null,
+      customer_phone: customerData.mobilePhone || customerData.phone || null,
+      payment_value: payment.value,
+      due_date: payment.dueDate,
+      user_id: user.id
+    };
+
+    const { error } = await supabase
+      .from('payment_records')
+      .insert([paymentRecord]);
+
+    if (error) {
+      console.error('Erro ao salvar registro:', error);
+      throw new Error('Erro ao salvar registro no banco de dados');
+    }
+  };
+
   const handleQueryBoletos = async () => {
     if (!configId || !apiKey) {
       toast({
@@ -203,7 +242,6 @@ const AnalystDashboard = () => {
 
       const responseData = await response.json();
       
-      // Log da consulta API
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('api_logs').insert([{
@@ -215,22 +253,31 @@ const AnalystDashboard = () => {
           response_body: JSON.stringify(responseData)
         }]);
         
-        // Recarrega os logs após nova consulta
         loadApiLogs();
+      }
+
+      for (const payment of responseData.data) {
+        try {
+          const customerData = await fetchCustomerDetails(payment.customer, apiKey);
+          await savePaymentRecord(payment, customerData);
+        } catch (error) {
+          console.error(`Erro ao processar pagamento ${payment.id}:`, error);
+        }
       }
 
       const formattedData = responseData.data.map((payment: any) => ({
         id: payment.id,
         value: payment.value,
         dueDate: payment.dueDate,
-        status: payment.status
+        status: payment.status,
+        customer: payment.customer
       }));
 
       setBoletos(formattedData);
       
       toast({
         title: "Sucesso",
-        description: "Boletos consultados com sucesso!",
+        description: "Boletos consultados e dados salvos com sucesso!",
       });
     } catch (error) {
       console.error('Erro na requisição:', error);
