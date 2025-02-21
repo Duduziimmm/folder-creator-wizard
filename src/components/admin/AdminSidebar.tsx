@@ -23,12 +23,12 @@ const menuItems = [
   {
     title: "Dashboard",
     url: "/analyst",
-    icon: BarChart2,
+    icon: BarChart2,  // Corrigido: usando BarChart2 para Dashboard
   },
   {
     title: "Coordenação",
     url: "/coordinator",
-    icon: Settings,
+    icon: Settings,  // Corrigido: usando Settings para Coordenação
   }
 ];
 
