@@ -25,15 +25,6 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
 
   const handleSendReminder = async (boleto: Boleto) => {
     try {
-      // Verificar se existe um registro para este boleto
-      const { data: existingRecord } = await supabase
-        .from('payment_records')
-        .select('id, webhook_send_count')
-        .eq('customer_id', boleto.id)
-        .eq('payment_value', boleto.value)
-        .eq('due_date', boleto.dueDate)
-        .single();
-
       if (!webhookUrl) {
         toast({
           title: "Erro",
@@ -55,6 +46,8 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
         timestamp: new Date().toISOString()
       };
 
+      console.log('Enviando dados para webhook:', webhookData);
+
       // Enviar para o webhook
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -68,14 +61,35 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
         throw new Error('Falha ao enviar lembrete');
       }
 
-      // Atualizar o contador de envios
+      // Verificar se existe um registro para este boleto
+      const { data: existingRecord } = await supabase
+        .from('payment_records')
+        .select('id, webhook_send_count')
+        .eq('customer_id', boleto.id)
+        .eq('payment_value', boleto.value)
+        .eq('due_date', boleto.dueDate)
+        .single();
+
+      // Atualizar ou criar registro do envio
       if (existingRecord) {
         await supabase
           .from('payment_records')
           .update({
-            webhook_send_count: (existingRecord.webhook_send_count || 0) + 1
+            webhook_send_count: (existingRecord.webhook_send_count || 0) + 1,
+            last_webhook_send: new Date().toISOString()
           })
           .eq('id', existingRecord.id);
+      } else {
+        await supabase
+          .from('payment_records')
+          .insert([{
+            customer_id: boleto.id,
+            customer_name: boleto.customer,
+            payment_value: boleto.value,
+            due_date: boleto.dueDate,
+            webhook_send_count: 1,
+            last_webhook_send: new Date().toISOString()
+          }]);
       }
 
       toast({
