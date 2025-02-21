@@ -14,12 +14,14 @@ const CoordinatorDashboard = () => {
       const { data: payments, error } = await supabase
         .from('payment_records')
         .select(`
+          id,
           customer_id,
           customer_name,
           customer_email,
           customer_phone,
           payment_value,
-          due_date
+          due_date,
+          webhook_send_count
         `)
         .order('due_date', { ascending: true });
 
