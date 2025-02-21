@@ -73,42 +73,66 @@ serve(async (req) => {
     }
     
     // Fazer a requisição para a API do Asaas
+    console.log('Fazendo requisição para:', apiUrl);
+    console.log('Headers:', {
+      'accept': 'application/json',
+      'access_token': accessToken.substring(0, 10) + '...' // Log parcial do token por segurança
+    });
+
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'accept': 'application/json',
         'access_token': accessToken
       }
-    })
+    });
 
-    // Tentar obter o corpo da resposta como JSON primeiro
-    let responseData;
+    console.log('Status da resposta:', response.status);
+    
+    // Primeiro tentar ler a resposta como texto
+    const responseText = await response.text();
+    console.log('Resposta bruta:', responseText);
+
+    // Se não for um sucesso, retornar o erro
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Erro na API do Asaas', 
+          status: response.status,
+          details: responseText 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: response.status
+        }
+      )
+    }
+
+    // Tentar fazer o parse do JSON
     try {
-      responseData = await response.json();
-      console.log(`Resposta da API (${requestType}):`, responseData);
-    } catch (error) {
-      console.error('Erro ao fazer parse da resposta como JSON:', error);
-      // Se falhar, pegar como texto para debug
-      const textResponse = await response.text();
-      console.error('Resposta raw:', textResponse);
+      const jsonData = JSON.parse(responseText);
+      console.log('Dados processados:', jsonData);
       
       return new Response(
-        JSON.stringify({ error: 'Erro ao processar resposta da API' }),
+        JSON.stringify(jsonData),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      )
+    } catch (error) {
+      console.error('Erro ao fazer parse do JSON:', error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Resposta inválida da API', 
+          details: responseText
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500
         }
       )
     }
-
-    // Se chegou aqui, temos um JSON válido
-    return new Response(
-      JSON.stringify(responseData),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: response.status
-      }
-    )
 
   } catch (error) {
     console.error('Erro na Edge Function:', error)
