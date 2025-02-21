@@ -208,14 +208,14 @@ const AnalystDashboard = () => {
 
       const { data, error } = await supabase
         .from('api_logs')
-        .insert([{
+        .insert({
           user_id: user.id,
           api_configuration_id: currentConfigId,
           request_url: url,
           request_method: method,
           response_status: status,
           response_body: responseBody
-        }])
+        })
         .select();
 
       if (error) {
@@ -224,9 +224,7 @@ const AnalystDashboard = () => {
       }
 
       console.log('Log salvo com sucesso:', data);
-      
       await loadApiLogs();
-      
       return data;
     } catch (error) {
       console.error('Erro ao salvar log:', error);
@@ -236,10 +234,6 @@ const AnalystDashboard = () => {
 
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
     console.log(`Consultando cliente no ambiente: ${isProd ? 'Produção' : 'Sandbox'}`);
-    console.log('URL base:', apiBaseUrl);
-    console.log('Customer ID:', customerId);
-    
-    const customerRequestUrl = `${apiBaseUrl}/customers/${customerId}`;
     
     try {
       const response = await fetch(
@@ -257,26 +251,30 @@ const AnalystDashboard = () => {
         }
       );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erro na resposta do cliente:', errorText);
-        throw new Error(`Erro ao consultar dados do cliente: ${errorText}`);
-      }
+      const responseText = await response.text();
+      console.log('Resposta bruta do cliente:', responseText);
 
-      const data = await response.json();
-      console.log('Dados do cliente:', data);
-
+      let data;
       try {
-        await saveApiLog(
-          customerRequestUrl,
-          'GET',
-          response.status,
-          JSON.stringify(data)
-        );
-        console.log('Log da consulta do cliente salvo com sucesso');
-      } catch (logError) {
-        console.error('Erro ao salvar log da consulta do cliente:', logError);
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Erro ao fazer parse da resposta do cliente:', e);
+        throw new Error('Resposta inválida da API do cliente');
       }
+
+      if (!response.ok) {
+        console.error('Erro na resposta do cliente:', data);
+        throw new Error(data.error || 'Erro ao consultar dados do cliente');
+      }
+
+      console.log('Dados do cliente processados:', data);
+
+      await saveApiLog(
+        `${apiBaseUrl}/customers/${customerId}`,
+        'GET',
+        response.status,
+        responseText
+      );
 
       return data;
     } catch (error) {
@@ -339,26 +337,28 @@ const AnalystDashboard = () => {
         }
       );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erro na resposta dos boletos:', errorText);
-        throw new Error(`Erro ao consultar boletos: ${errorText}`);
-      }
+      const responseText = await response.text();
+      console.log('Resposta bruta dos boletos:', responseText);
 
-      const responseData = await response.json();
-      console.log('Dados dos pagamentos:', responseData);
-
+      let responseData;
       try {
-        await saveApiLog(
-          requestUrl,
-          'GET',
-          response.status,
-          JSON.stringify(responseData)
-        );
-        console.log('Log da consulta de boletos salvo com sucesso');
-      } catch (logError) {
-        console.error('Erro ao salvar log dos boletos:', logError);
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Erro ao fazer parse da resposta dos boletos:', e);
+        throw new Error('Resposta inválida da API de boletos');
       }
+
+      if (!response.ok) {
+        console.error('Erro na resposta dos boletos:', responseData);
+        throw new Error(responseData.error || 'Erro ao consultar boletos');
+      }
+
+      await saveApiLog(
+        `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`,
+        'GET',
+        response.status,
+        responseText
+      );
 
       if (!responseData.data || !Array.isArray(responseData.data)) {
         throw new Error('Formato de resposta inválido');
