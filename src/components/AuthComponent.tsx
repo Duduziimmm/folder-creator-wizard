@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "./ui/use-toast";
 
@@ -11,7 +11,6 @@ interface Props {
 
 const AuthComponent = ({ children, requiredRole }: Props) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -25,6 +24,18 @@ const AuthComponent = ({ children, requiredRole }: Props) => {
           return;
         }
 
+        // Verifica se o usuário é admin
+        const { data: isAdmin } = await supabase.rpc('has_role', {
+          role_to_check: 'admin'
+        });
+
+        // Se o usuário é admin, permite acesso a qualquer página
+        if (isAdmin) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Se não é admin e a página requer uma role específica
         if (requiredRole) {
           const { data: hasRole, error } = await supabase.rpc('has_role', {
             role_to_check: requiredRole
@@ -42,30 +53,24 @@ const AuthComponent = ({ children, requiredRole }: Props) => {
           }
 
           if (!hasRole) {
-            // Se o usuário não tem a role necessária, verifica se tem alguma outra role
-            const { data: roles } = await supabase
+            const { data: userRole } = await supabase
               .from('user_roles')
               .select('role')
               .eq('user_id', session.user.id)
               .single();
 
-            // Redireciona para a página apropriada baseado na role do usuário
-            if (roles) {
-              const redirectPath = roles.role === 'admin' 
-                ? '/admin/members' 
-                : roles.role === 'coordinator' 
-                  ? '/coordinator' 
-                  : '/analyst';
+            const redirectPath = userRole?.role === 'coordinator' 
+              ? '/coordinator' 
+              : '/analyst';
 
-              toast({
-                variant: "destructive",
-                title: "Acesso negado",
-                description: "Você não tem permissão para acessar esta página."
-              });
-              
-              navigate(redirectPath, { replace: true });
-              return;
-            }
+            toast({
+              variant: "destructive",
+              title: "Acesso negado",
+              description: "Você não tem permissão para acessar esta página."
+            });
+            
+            navigate(redirectPath, { replace: true });
+            return;
           }
         }
 

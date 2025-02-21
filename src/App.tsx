@@ -11,47 +11,58 @@ import AnalystDashboard from "./components/analyst-dashboard";
 import CoordinatorDashboard from "./components/coordinator-dashboard";
 import MembersManagement from "./components/admin/members-management";
 import AuthComponent from "./components/AuthComponent";
+import { AdminSidebar } from "./components/admin/AdminSidebar";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<LoginForm />} />
-          <Route
-            path="/analyst"
-            element={
-              <AuthComponent requiredRole="analyst">
-                <AnalystDashboard />
-              </AuthComponent>
-            }
-          />
-          <Route
-            path="/coordinator"
-            element={
-              <AuthComponent requiredRole="coordinator">
-                <CoordinatorDashboard />
-              </AuthComponent>
-            }
-          />
-          <Route
-            path="/admin/members"
-            element={
-              <AuthComponent requiredRole="admin">
-                <MembersManagement />
-              </AuthComponent>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<LoginForm />} />
+            <Route
+              path="/admin/*"
+              element={
+                <AuthComponent requiredRole="admin">
+                  <AdminSidebar>
+                    <Routes>
+                      <Route path="members" element={<MembersManagement />} />
+                    </Routes>
+                  </AdminSidebar>
+                </AuthComponent>
+              }
+            />
+            <Route
+              path="/analyst"
+              element={
+                <AuthComponent requiredRole="admin">
+                  <AdminSidebar>
+                    <AnalystDashboard />
+                  </AdminSidebar>
+                </AuthComponent>
+              }
+            />
+            <Route
+              path="/coordinator"
+              element={
+                <AuthComponent requiredRole="admin">
+                  <AdminSidebar>
+                    <CoordinatorDashboard />
+                  </AdminSidebar>
+                </AuthComponent>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
