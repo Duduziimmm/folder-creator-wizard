@@ -212,6 +212,48 @@ const AnalystDashboard = () => {
     }
   };
 
+  const saveApiLog = async (url: string, method: string, status: number | null, responseBody: string | null) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('Usuário não autenticado ao tentar salvar log');
+        return;
+      }
+
+      console.log('Tentando salvar log com dados:', {
+        user_id: user.id,
+        api_configuration_id: configId,
+        request_url: url,
+        request_method: method,
+        response_status: status,
+        response_body: responseBody
+      });
+
+      const { data, error } = await supabase
+        .from('api_logs')
+        .insert([{
+          user_id: user.id,
+          api_configuration_id: configId,
+          request_url: url,
+          request_method: method,
+          response_status: status,
+          response_body: responseBody
+        }])
+        .select();
+
+      if (error) {
+        console.error('Erro ao salvar log:', error);
+        throw error;
+      }
+
+      console.log('Log salvo com sucesso:', data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao salvar log:', error);
+      throw error;
+    }
+  };
+
   const handleQueryBoletos = async () => {
     if (!configId || !apiKey) {
       toast({
@@ -223,43 +265,40 @@ const AnalystDashboard = () => {
     }
 
     setIsLoading(true);
+    const queryParams = new URLSearchParams({
+      'dueDate[ge]': selectedDate,
+      'dueDate[le]': selectedDate
+    });
+
+    const requestUrl = `${apiBaseUrl}/payments?${queryParams}`;
+    console.log('Iniciando consulta de boletos...');
+    console.log('URL da requisição:', requestUrl);
+    console.log('API Key (primeiros 4 caracteres):', apiKey.substring(0, 4));
+
     try {
-      const queryParams = new URLSearchParams({
-        'dueDate[ge]': selectedDate,
-        'dueDate[le]': selectedDate
-      });
-
-      console.log('Fazendo requisição para:', `${apiBaseUrl}/payments?${queryParams}`);
-      console.log('Com API Key:', apiKey);
-
-      const response = await fetch(`${apiBaseUrl}/payments?${queryParams}`, {
+      const response = await fetch(requestUrl, {
         headers: {
           'accept': 'application/json',
           'access_token': apiKey
         }
       });
 
+      console.log('Status da resposta:', response.status);
+      const responseText = await response.text();
+      console.log('Resposta da API:', responseText);
+
+      await saveApiLog(
+        requestUrl,
+        'GET',
+        response.status,
+        responseText
+      );
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erro na resposta da API:', errorText);
-        throw new Error('Erro ao consultar a API');
+        throw new Error(`Erro ao consultar a API: ${responseText}`);
       }
 
-      const responseData = await response.json();
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('api_logs').insert([{
-          user_id: user.id,
-          api_configuration_id: configId,
-          request_url: `${apiBaseUrl}/payments?${queryParams}`,
-          request_method: 'GET',
-          response_status: response.status,
-          response_body: JSON.stringify(responseData)
-        }]);
-        
-        loadApiLogs();
-      }
+      const responseData = JSON.parse(responseText);
 
       for (const payment of responseData.data) {
         try {
@@ -284,11 +323,14 @@ const AnalystDashboard = () => {
         title: "Sucesso",
         description: "Boletos consultados e dados salvos com sucesso!",
       });
+
+      await loadApiLogs();
+
     } catch (error) {
-      console.error('Erro na requisição:', error);
+      console.error('Erro completo na requisição:', error);
       toast({
         title: "Erro",
-        description: "Erro ao consultar boletos. Verifique suas configurações.",
+        description: error instanceof Error ? error.message : "Erro ao consultar boletos. Verifique suas configurações.",
         variant: "destructive",
       });
       setBoletos([]);
