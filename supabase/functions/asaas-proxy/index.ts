@@ -46,10 +46,6 @@ serve(async (req) => {
         }
       })
 
-      if (!customerResponse.ok) {
-        throw new Error(`Erro ao consultar cliente: ${customerResponse.status}`)
-      }
-
       const customerData = await customerResponse.json()
       console.log('Dados do cliente:', customerData)
 
@@ -84,10 +80,6 @@ serve(async (req) => {
       }
     })
 
-    if (!paymentsResponse.ok) {
-      throw new Error(`Erro ao consultar cobranças: ${paymentsResponse.status}`)
-    }
-
     const paymentsData = await paymentsResponse.json()
     console.log('Dados das cobranças:', paymentsData)
 
@@ -98,6 +90,7 @@ serve(async (req) => {
         status: paymentsResponse.status
       }
     )
+
   } catch (error) {
     console.error('Erro na Edge Function:', error)
     return new Response(
@@ -109,3 +102,4 @@ serve(async (req) => {
     )
   }
 })
+
