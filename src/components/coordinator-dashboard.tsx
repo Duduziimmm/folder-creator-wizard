@@ -31,8 +31,9 @@ const CoordinatorDashboard = () => {
       }
 
       if (payments) {
+        // Usando o id da tabela payment_records ao invés do customer_id
         setBoletos(payments.map(payment => ({
-          id: payment.customer_id,
+          id: payment.id, // Alterado aqui para usar o id do registro
           customer: payment.customer_name,
           email: payment.customer_email,
           phone: payment.customer_phone,
