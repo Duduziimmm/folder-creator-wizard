@@ -248,6 +248,7 @@ const AnalystDashboard = () => {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
             'access_token': apiKey,
             'asaas-environment': isProd ? 'prod' : 'sandbox',
             'request-type': 'customer',
@@ -256,39 +257,27 @@ const AnalystDashboard = () => {
         }
       );
 
-      const responseText = await response.text();
-      console.log('Resposta da consulta do cliente:', responseText);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Erro na resposta do cliente:', errorText);
+        throw new Error(`Erro ao consultar dados do cliente: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Dados do cliente:', data);
 
       try {
         await saveApiLog(
           customerRequestUrl,
           'GET',
           response.status,
-          responseText
+          JSON.stringify(data)
         );
         console.log('Log da consulta do cliente salvo com sucesso');
       } catch (logError) {
         console.error('Erro ao salvar log da consulta do cliente:', logError);
-        toast({
-          variant: "destructive",
-          title: "Aviso",
-          description: "Erro ao salvar o log da consulta do cliente.",
-        });
       }
 
-      if (!response.ok) {
-        throw new Error(`Erro ao consultar dados do cliente: ${responseText}`);
-      }
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Erro ao fazer parse da resposta:', parseError);
-        throw new Error('Resposta inválida do servidor');
-      }
-
-      console.log('Dados do cliente:', data);
       return data;
     } catch (error) {
       console.error('Erro ao buscar detalhes do cliente:', error);
@@ -341,6 +330,7 @@ const AnalystDashboard = () => {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
             'access_token': apiKey,
             'asaas-environment': isProd ? 'prod' : 'sandbox',
             'request-type': 'payments',
@@ -349,40 +339,26 @@ const AnalystDashboard = () => {
         }
       );
 
-      console.log('Status da resposta dos boletos:', response.status);
-      const responseText = await response.text();
-      console.log('Resposta da API de boletos:', responseText);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Erro na resposta dos boletos:', errorText);
+        throw new Error(`Erro ao consultar boletos: ${errorText}`);
+      }
+
+      const responseData = await response.json();
+      console.log('Dados dos pagamentos:', responseData);
 
       try {
         await saveApiLog(
           requestUrl,
           'GET',
           response.status,
-          responseText
+          JSON.stringify(responseData)
         );
         console.log('Log da consulta de boletos salvo com sucesso');
       } catch (logError) {
         console.error('Erro ao salvar log dos boletos:', logError);
-        toast({
-          title: "Aviso",
-          description: "A consulta foi realizada, mas houve um erro ao salvar o histórico.",
-          variant: "destructive",
-        });
       }
-
-      if (!response.ok) {
-        throw new Error(`Erro ao consultar a API: ${responseText}`);
-      }
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Erro ao fazer parse da resposta:', parseError);
-        throw new Error('Resposta inválida do servidor');
-      }
-
-      console.log('Dados dos pagamentos:', responseData);
 
       if (!responseData.data || !Array.isArray(responseData.data)) {
         throw new Error('Formato de resposta inválido');
@@ -411,12 +387,6 @@ const AnalystDashboard = () => {
             status: payment.status,
             customer: payment.customer
           });
-          
-          toast({
-            title: "Aviso",
-            description: `Erro ao buscar dados do cliente ${payment.customer}`,
-            variant: "destructive",
-          });
         }
       }
 
@@ -424,22 +394,15 @@ const AnalystDashboard = () => {
       
       toast({
         title: "Sucesso",
-        description: "Boletos consultados e dados salvos com sucesso!",
+        description: "Boletos consultados com sucesso!",
       });
-
-      await loadApiLogs();
 
     } catch (error) {
       console.error('Erro completo na requisição:', error);
       
-      let errorMessage = "Erro ao consultar boletos. ";
-      if (error instanceof Error) {
-        errorMessage += error.message;
-      }
-
       toast({
         title: "Erro",
-        description: errorMessage,
+        description: error.message || "Erro ao consultar boletos",
         variant: "destructive",
       });
       setBoletos([]);
