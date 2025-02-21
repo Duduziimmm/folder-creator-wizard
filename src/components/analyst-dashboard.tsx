@@ -275,25 +275,20 @@ const AnalystDashboard = () => {
     }
 
     setIsLoading(true);
-    const queryParams = new URLSearchParams({
-      'dueDate[ge]': selectedDate,
-      'dueDate[le]': selectedDate
-    });
-
-    const requestUrl = `${apiBaseUrl}?${queryParams}`;
     console.log('Iniciando consulta de boletos...');
-    console.log('URL da requisição:', requestUrl);
-    console.log('API Key (primeiros 4 caracteres):', apiKey.substring(0, 4));
 
     try {
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'access_token': apiKey
-        },
-        mode: 'cors'
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy?dueDate=${selectedDate}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'access_token': apiKey,
+            'asaas-environment': isProd ? 'prod' : 'sandbox'
+          }
+        }
+      );
 
       console.log('Status da resposta:', response.status);
       const responseText = await response.text();
@@ -301,7 +296,7 @@ const AnalystDashboard = () => {
 
       try {
         await saveApiLog(
-          requestUrl,
+          `${apiBaseUrl}?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`,
           'GET',
           response.status,
           responseText
