@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,20 +32,25 @@ const MembersManagement = () => {
           role,
           created_at,
           user_id,
-          profiles (
+          profiles!user_roles_user_id_fkey (
             email
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching members:', error);
+        throw error;
+      }
 
-      setMembers(data.map(item => ({
+      const mappedMembers = data.map(item => ({
         id: item.id,
         email: item.profiles?.email || '',
         role: item.role,
         created_at: item.created_at
-      })));
+      }));
+
+      console.log('Fetched members:', mappedMembers);
+      setMembers(mappedMembers);
     } catch (error) {
       console.error('Error loading members:', error);
       toast({
@@ -69,10 +73,9 @@ const MembersManagement = () => {
 
     setIsLoading(true);
     try {
-      // Criar novo usuário no Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newMemberEmail,
-        password: Math.random().toString(36).slice(-8), // Senha temporária aleatória
+        password: Math.random().toString(36).slice(-8),
         options: {
           data: {
             role: newMemberRole
@@ -88,7 +91,6 @@ const MembersManagement = () => {
         throw new Error("Erro ao criar usuário");
       }
 
-      // Adiciona a role ao usuário
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert([{
