@@ -290,8 +290,7 @@ const AnalystDashboard = () => {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey,
-          'Content-Type': 'application/json'
+          'access_token': apiKey
         },
         mode: 'cors'
       });
