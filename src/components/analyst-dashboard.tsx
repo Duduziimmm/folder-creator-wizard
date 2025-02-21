@@ -330,6 +330,14 @@ const AnalystDashboard = () => {
         }
       );
 
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Resposta não é JSON:', contentType);
+        const text = await response.text();
+        console.error('Conteúdo da resposta:', text);
+        throw new Error('Resposta inválida do servidor. Por favor, tente novamente.');
+      }
+
       const responseData = await response.json();
       console.log('Resposta dos boletos:', responseData);
 
@@ -367,8 +375,20 @@ const AnalystDashboard = () => {
             }
           );
 
+          const customerContentType = customerResponse.headers.get('content-type');
+          if (!customerContentType || !customerContentType.includes('application/json')) {
+            console.error('Resposta do cliente não é JSON:', customerContentType);
+            const text = await customerResponse.text();
+            console.error('Conteúdo da resposta do cliente:', text);
+            throw new Error('Resposta inválida ao consultar cliente');
+          }
+
           const customerData = await customerResponse.json();
           
+          if (!customerResponse.ok) {
+            throw new Error(customerData.error || 'Erro ao consultar cliente');
+          }
+
           await saveApiLog(
             `${apiBaseUrl}/customers/${payment.customer}`,
             'GET',
