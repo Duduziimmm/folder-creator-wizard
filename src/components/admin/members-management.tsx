@@ -70,7 +70,15 @@ const MembersManagement = () => {
     setIsLoading(true);
     try {
       // Criar novo usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(newMemberEmail);
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newMemberEmail,
+        password: Math.random().toString(36).slice(-8), // Senha temporária aleatória
+        options: {
+          data: {
+            role: newMemberRole
+          }
+        }
+      });
 
       if (authError) {
         throw authError;
