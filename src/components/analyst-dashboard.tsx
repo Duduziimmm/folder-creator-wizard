@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -6,14 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import BoletosTable from "./shared/boletos-table";
+
+interface Boleto {
+  id: string;
+  value: number;
+  dueDate: string;
+  status: string;
+}
 
 const AnalystDashboard = () => {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [selectedDate, setSelectedDate] = useState('2025-02-14');
+  const [boletos, setBoletos] = useState<Boleto[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Carregar configurações salvas
   useEffect(() => {
     const savedApiKey = localStorage.getItem('asaasApiKey');
     const savedWebhookUrl = localStorage.getItem('webhookUrl');
@@ -54,27 +62,34 @@ const AnalystDashboard = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
-      // Aqui você implementaria a chamada real para a API do Asaas
-      toast({
-        title: "Consulta iniciada",
-        description: "Consultando boletos com a chave API configurada...",
+      const response = await fetch('https://api-sandbox.asaas.com/api/v3/payments', {
+        headers: {
+          'access_token': savedApiKey
+        }
       });
+
+      if (!response.ok) {
+        throw new Error('Erro ao consultar a API');
+      }
+
+      const data = await response.json();
+      setBoletos(data.data || []);
       
-      // Exemplo de como seria a chamada (pseudocódigo)
-      // const response = await fetch('https://api-sandbox.asaas.com/api/v3/payments', {
-      //   headers: {
-      //     'access_token': savedApiKey
-      //   }
-      // });
-      // const data = await response.json();
-      
+      toast({
+        title: "Sucesso",
+        description: "Boletos consultados com sucesso!",
+      });
     } catch (error) {
       toast({
         title: "Erro",
         description: "Erro ao consultar boletos. Verifique suas configurações.",
         variant: "destructive",
       });
+      setBoletos([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -87,7 +102,6 @@ const AnalystDashboard = () => {
         </Link>
       </div>
 
-      {/* Role Tabs */}
       <div className="mb-6">
         <Tabs defaultValue="analyst" className="w-fit">
           <TabsList>
@@ -97,7 +111,6 @@ const AnalystDashboard = () => {
         </Tabs>
       </div>
 
-      {/* Section Tabs */}
       <div className="mb-6">
         <Tabs defaultValue="config" className="w-fit">
           <TabsList>
@@ -109,7 +122,6 @@ const AnalystDashboard = () => {
             <div className="bg-white rounded-lg p-6 shadow-sm">
               <h2 className="text-2xl font-semibold mb-8">Configurações do Ambiente</h2>
 
-              {/* Sandbox Environment Switch */}
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 <div className="flex justify-between items-center">
                   <div>
@@ -120,7 +132,6 @@ const AnalystDashboard = () => {
                 </div>
               </div>
 
-              {/* API Base URL Info */}
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 <div className="flex items-start gap-2">
                   <span className="text-gray-500">ℹ️</span>
@@ -128,7 +139,6 @@ const AnalystDashboard = () => {
                 </div>
               </div>
 
-              {/* API Key Input */}
               <div className="mb-6">
                 <label className="block text-lg font-medium mb-2">Chave API do Asaas</label>
                 <Input 
@@ -140,7 +150,6 @@ const AnalystDashboard = () => {
                 />
               </div>
 
-              {/* Webhook URL Input */}
               <div className="mb-8">
                 <label className="block text-lg font-medium mb-2">Webhook URL</label>
                 <Input 
@@ -152,7 +161,6 @@ const AnalystDashboard = () => {
                 />
               </div>
 
-              {/* Save Button */}
               <Button 
                 className="w-full bg-black text-white hover:bg-gray-800"
                 onClick={handleSaveConfig}
@@ -165,7 +173,7 @@ const AnalystDashboard = () => {
           <TabsContent value="consultation">
             <div className="bg-white rounded-lg p-6 shadow-sm">
               <h2 className="text-2xl font-semibold mb-8">Consulta de Boletos</h2>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 mb-8">
                 <Input
                   type="date"
                   className="flex-1"
@@ -175,10 +183,13 @@ const AnalystDashboard = () => {
                 <Button 
                   className="bg-black text-white hover:bg-gray-800 px-6"
                   onClick={handleQueryBoletos}
+                  disabled={isLoading}
                 >
-                  Consultar Boletos
+                  {isLoading ? "Consultando..." : "Consultar Boletos"}
                 </Button>
               </div>
+
+              <BoletosTable boletos={boletos} />
             </div>
           </TabsContent>
         </Tabs>
