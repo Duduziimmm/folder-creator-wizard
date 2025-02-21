@@ -206,7 +206,7 @@ const AnalystDashboard = () => {
       }
 
       if (!response.ok) {
-        throw new Error('Erro ao consultar dados do cliente');
+        throw new Error(`Erro ao consultar dados do cliente: ${responseText}`);
       }
 
       const data = JSON.parse(responseText);
@@ -296,7 +296,7 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     console.log('Iniciando consulta de boletos...');
-    const requestUrl = `${apiBaseUrl}?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
+    const requestUrl = `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
 
     try {
       const response = await fetch(
@@ -340,6 +340,10 @@ const AnalystDashboard = () => {
       const responseData = JSON.parse(responseText);
       console.log('Dados dos pagamentos:', responseData);
 
+      if (!responseData.data || !Array.isArray(responseData.data)) {
+        throw new Error('Formato de resposta inválido');
+      }
+
       const processedPayments = [];
       for (const payment of responseData.data) {
         try {
@@ -356,7 +360,6 @@ const AnalystDashboard = () => {
         } catch (error) {
           console.error(`Erro ao processar pagamento ${payment.id}:`, error);
           
-          // Mesmo com erro, adiciona o pagamento à lista com os dados disponíveis
           processedPayments.push({
             id: payment.id,
             value: payment.value,
@@ -380,7 +383,6 @@ const AnalystDashboard = () => {
         description: "Boletos consultados e dados salvos com sucesso!",
       });
 
-      // Recarregar logs após uma consulta bem-sucedida
       await loadApiLogs();
 
     } catch (error) {
