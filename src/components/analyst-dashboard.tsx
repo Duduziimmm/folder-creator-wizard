@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -195,17 +194,13 @@ const AnalystDashboard = () => {
       console.log('Resposta da consulta do cliente:', responseText);
 
       // Salvar log da consulta do cliente
-      try {
-        await saveApiLog(
-          customerRequestUrl,
-          'GET',
-          response.status,
-          responseText
-        );
-        console.log('Log da consulta do cliente salvo com sucesso');
-      } catch (logError) {
-        console.error('Erro ao salvar log da consulta do cliente:', logError);
-      }
+      await saveApiLog(
+        customerRequestUrl,
+        'GET',
+        response.status,
+        responseText
+      );
+      console.log('Log da consulta do cliente salvo com sucesso');
 
       if (!response.ok) {
         throw new Error(`Erro ao consultar dados do cliente: ${responseText}`);
