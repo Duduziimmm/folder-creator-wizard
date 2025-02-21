@@ -45,30 +45,43 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
         return;
       }
 
-      // Preparar dados para enviar ao webhook
+      // Preparar dados para enviar ao webhook em formato JSON
       const webhookData = {
-        payment_id: boleto.id,
-        customer: boleto.customer,
-        email: boleto.email,
-        phone: boleto.phone,
-        value: boleto.value,
-        due_date: boleto.dueDate,
-        status: boleto.status,
-        timestamp: new Date().toISOString()
+        tipo: "lembrete_pagamento",
+        dados: {
+          payment_id: boleto.id,
+          customer: {
+            name: boleto.customer,
+            email: boleto.email,
+            phone: boleto.phone
+          },
+          payment: {
+            value: boleto.value,
+            due_date: boleto.dueDate,
+            status: boleto.status
+          },
+          metadata: {
+            sent_by: user.id,
+            timestamp: new Date().toISOString()
+          }
+        }
       };
 
-      console.log('Enviando dados para webhook:', webhookData);
+      console.log('Enviando dados para webhook:', JSON.stringify(webhookData, null, 2));
 
-      // Enviar para o webhook
+      // Enviar para o webhook com headers JSON explícitos
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(webhookData),
+        body: JSON.stringify(webhookData)
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Resposta do webhook:', errorText);
         throw new Error('Falha ao enviar lembrete');
       }
 
@@ -102,7 +115,7 @@ const BoletosTable = ({ boletos, webhookUrl }: BoletosTableProps) => {
             due_date: boleto.dueDate,
             webhook_send_count: 1,
             last_webhook_send: new Date().toISOString(),
-            user_id: user.id // Adicionando o user_id obrigatório
+            user_id: user.id
           });
       }
 
