@@ -40,6 +40,11 @@ const AnalystDashboard = () => {
   const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3';
 
   useEffect(() => {
+    console.log('Verificando variáveis de ambiente:', {
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+      hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
+    });
+    
     loadConfiguration();
     loadApiLogs();
   }, []);
@@ -315,6 +320,14 @@ const AnalystDashboard = () => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
+    console.log('Detalhes da requisição:', {
+      supabaseUrl,
+      hasAnonKey: !!supabaseAnonKey,
+      selectedDate,
+      isProd,
+      configId
+    });
+
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error('Variáveis de ambiente não configuradas:', { supabaseUrl, supabaseAnonKey });
       toast({
