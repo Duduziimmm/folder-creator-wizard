@@ -251,29 +251,25 @@ const AnalystDashboard = () => {
         }
       );
 
-      const responseText = await response.text();
-      console.log('Resposta bruta do cliente:', responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Erro ao fazer parse da resposta do cliente:', e);
-        throw new Error('Resposta inválida da API do cliente');
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Resposta não é JSON:', contentType);
+        throw new Error('Resposta inválida do servidor');
       }
+
+      const data = await response.json();
+      console.log('Resposta do cliente:', data);
 
       if (!response.ok) {
         console.error('Erro na resposta do cliente:', data);
         throw new Error(data.error || 'Erro ao consultar dados do cliente');
       }
 
-      console.log('Dados do cliente processados:', data);
-
       await saveApiLog(
         `${apiBaseUrl}/customers/${customerId}`,
         'GET',
         response.status,
-        responseText
+        JSON.stringify(data)
       );
 
       return data;
@@ -337,16 +333,14 @@ const AnalystDashboard = () => {
         }
       );
 
-      const responseText = await response.text();
-      console.log('Resposta bruta dos boletos:', responseText);
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Erro ao fazer parse da resposta dos boletos:', e);
-        throw new Error('Resposta inválida da API de boletos');
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Resposta não é JSON:', contentType);
+        throw new Error('Resposta inválida do servidor');
       }
+
+      const responseData = await response.json();
+      console.log('Resposta dos boletos:', responseData);
 
       if (!response.ok) {
         console.error('Erro na resposta dos boletos:', responseData);
@@ -357,7 +351,7 @@ const AnalystDashboard = () => {
         `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`,
         'GET',
         response.status,
-        responseText
+        JSON.stringify(responseData)
       );
 
       if (!responseData.data || !Array.isArray(responseData.data)) {
