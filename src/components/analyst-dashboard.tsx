@@ -38,6 +38,8 @@ const AnalystDashboard = () => {
   const [configId, setConfigId] = useState<string | null>(null);
 
   const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3';
+  const SUPABASE_URL = "https://jbukjobmomhawctjdqaf.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpidWtqb2Jtb21oYXdjdGpkcWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAxNDcyNzcsImV4cCI6MjA1NTcyMzI3N30.u8rXIdoGSesTl_gGjso6riWkXrBk2KF4AlwiPyoscfI";
 
   useEffect(() => {
     console.log('Verificando variáveis de ambiente:', {
@@ -343,11 +345,11 @@ const AnalystDashboard = () => {
 
     try {
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/asaas-proxy`,
+        `${SUPABASE_URL}/functions/v1/asaas-proxy`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
             'access_token': apiKey,
             'asaas-environment': isProd ? 'prod' : 'sandbox',
@@ -402,11 +404,11 @@ const AnalystDashboard = () => {
         try {
           console.log('Processando pagamento:', payment.id);
           const customerResponse = await fetch(
-            `${supabaseUrl}/functions/v1/asaas-proxy`,
+            `${SUPABASE_URL}/functions/v1/asaas-proxy`,
             {
               method: 'GET',
               headers: {
-                'Authorization': `Bearer ${supabaseAnonKey}`,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                 'Content-Type': 'application/json',
                 'access_token': apiKey,
                 'asaas-environment': isProd ? 'prod' : 'sandbox',
