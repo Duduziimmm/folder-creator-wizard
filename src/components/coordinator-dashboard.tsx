@@ -4,13 +4,14 @@ import BoletosTable from './shared/boletos-table';
 import { supabase } from '@/integrations/supabase/client';
 
 const CoordinatorDashboard = () => {
-  // Inicializando um array vazio de boletos
   const [boletos, setBoletos] = React.useState([]);
   const [webhookUrl, setWebhookUrl] = React.useState('');
 
   React.useEffect(() => {
     const fetchBoletos = async () => {
-      // Buscar os registros de pagamento
+      // Adicionando console.log para debug
+      console.log('Iniciando busca de boletos...');
+      
       const { data: payments, error } = await supabase
         .from('payment_records')
         .select(`
@@ -30,17 +31,24 @@ const CoordinatorDashboard = () => {
         return;
       }
 
+      console.log('Dados recebidos do banco:', payments);
+
       if (payments) {
-        // Usando o id da tabela payment_records ao invés do customer_id
-        setBoletos(payments.map(payment => ({
-          id: payment.id, // Alterado aqui para usar o id do registro
-          customer: payment.customer_name,
-          email: payment.customer_email,
-          phone: payment.customer_phone,
-          value: payment.payment_value,
-          dueDate: payment.due_date,
-          status: 'PENDING'
-        })));
+        const boletosFormatados = payments.map(payment => {
+          console.log('Processando pagamento:', payment);
+          return {
+            id: payment.id,
+            customer: payment.customer_name,
+            email: payment.customer_email || '-', // Garante que sempre terá um valor
+            phone: payment.customer_phone || '-',
+            value: payment.payment_value,
+            dueDate: payment.due_date,
+            status: 'PENDING'
+          };
+        });
+
+        console.log('Boletos formatados:', boletosFormatados);
+        setBoletos(boletosFormatados);
       }
 
       // Buscar configuração do webhook
