@@ -91,6 +91,7 @@ export type Database = {
           id: string
           payment_value: number
           user_id: string
+          webhook_send_count: number | null
         }
         Insert: {
           consulted_at?: string | null
@@ -102,6 +103,7 @@ export type Database = {
           id?: string
           payment_value: number
           user_id: string
+          webhook_send_count?: number | null
         }
         Update: {
           consulted_at?: string | null
@@ -113,6 +115,7 @@ export type Database = {
           id?: string
           payment_value?: number
           user_id?: string
+          webhook_send_count?: number | null
         }
         Relationships: []
       }

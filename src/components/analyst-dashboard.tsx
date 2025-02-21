@@ -300,23 +300,34 @@ const AnalystDashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const paymentRecord = {
-      customer_id: customerData.id,
-      customer_name: customerData.name,
-      customer_email: customerData.email || null,
-      customer_phone: customerData.mobilePhone || customerData.phone || null,
-      payment_value: payment.value,
-      due_date: payment.dueDate,
-      user_id: user.id
-    };
-
-    const { error } = await supabase
+    const { data: existingRecord } = await supabase
       .from('payment_records')
-      .insert([paymentRecord]);
+      .select('id')
+      .eq('customer_id', customerData.id)
+      .eq('payment_value', payment.value)
+      .eq('due_date', payment.dueDate)
+      .maybeSingle();
 
-    if (error) {
-      console.error('Erro ao salvar registro:', error);
-      throw new Error('Erro ao salvar registro no banco de dados');
+    if (!existingRecord) {
+      const paymentRecord = {
+        customer_id: customerData.id,
+        customer_name: customerData.name,
+        customer_email: customerData.email || null,
+        customer_phone: customerData.mobilePhone || customerData.phone || null,
+        payment_value: payment.value,
+        due_date: payment.dueDate,
+        user_id: user.id,
+        webhook_send_count: 0
+      };
+
+      const { error } = await supabase
+        .from('payment_records')
+        .insert([paymentRecord]);
+
+      if (error) {
+        console.error('Erro ao salvar registro:', error);
+        throw new Error('Erro ao salvar registro no banco de dados');
+      }
     }
   };
 
@@ -571,7 +582,7 @@ const AnalystDashboard = () => {
                 </Button>
               </div>
 
-              <BoletosTable boletos={boletos} />
+              <BoletosTable boletos={boletos} webhookUrl={webhookUrl} />
             </div>
           </TabsContent>
 
