@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -38,7 +37,7 @@ const AnalystDashboard = () => {
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [configId, setConfigId] = useState<string | null>(null);
 
-  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3';
+  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3/payments' : 'https://api-sandbox.asaas.com/v3/payments';
 
   useEffect(() => {
     loadConfiguration();
@@ -281,7 +280,7 @@ const AnalystDashboard = () => {
       'dueDate[le]': selectedDate
     });
 
-    const requestUrl = `${apiBaseUrl}/payments?${queryParams}`;
+    const requestUrl = `${apiBaseUrl}?${queryParams}`;
     console.log('Iniciando consulta de boletos...');
     console.log('URL da requisição:', requestUrl);
     console.log('API Key (primeiros 4 caracteres):', apiKey.substring(0, 4));
