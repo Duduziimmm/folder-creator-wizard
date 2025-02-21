@@ -3,6 +3,9 @@ import React from 'react';
 import BoletosTable from './shared/boletos-table';
 
 const CoordinatorDashboard = () => {
+  // Inicializando um array vazio de boletos
+  const boletos = [];
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Dashboard do Coordenador</h1>
@@ -21,7 +24,7 @@ const CoordinatorDashboard = () => {
             <p className="text-2xl font-bold">0</p>
           </div>
         </div>
-        <BoletosTable />
+        <BoletosTable boletos={boletos} />
       </div>
     </div>
   );
