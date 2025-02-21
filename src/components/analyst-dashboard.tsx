@@ -1,12 +1,83 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 
 const AnalystDashboard = () => {
+  const { toast } = useToast();
+  const [apiKey, setApiKey] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [selectedDate, setSelectedDate] = useState('2025-02-14');
+
+  // Carregar configurações salvas
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('asaasApiKey');
+    const savedWebhookUrl = localStorage.getItem('webhookUrl');
+    
+    if (savedApiKey) setApiKey(savedApiKey);
+    if (savedWebhookUrl) setWebhookUrl(savedWebhookUrl);
+  }, []);
+
+  const handleSaveConfig = () => {
+    if (!apiKey || !webhookUrl) {
+      toast({
+        title: "Erro",
+        description: "Por favor, preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    localStorage.setItem('asaasApiKey', apiKey);
+    localStorage.setItem('webhookUrl', webhookUrl);
+
+    toast({
+      title: "Sucesso",
+      description: "Configurações salvas com sucesso!",
+    });
+  };
+
+  const handleQueryBoletos = async () => {
+    const savedApiKey = localStorage.getItem('asaasApiKey');
+    const savedWebhookUrl = localStorage.getItem('webhookUrl');
+
+    if (!savedApiKey || !savedWebhookUrl) {
+      toast({
+        title: "Erro",
+        description: "Configure primeiro a Chave API e Webhook URL nas configurações.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Aqui você implementaria a chamada real para a API do Asaas
+      toast({
+        title: "Consulta iniciada",
+        description: "Consultando boletos com a chave API configurada...",
+      });
+      
+      // Exemplo de como seria a chamada (pseudocódigo)
+      // const response = await fetch('https://api-sandbox.asaas.com/api/v3/payments', {
+      //   headers: {
+      //     'access_token': savedApiKey
+      //   }
+      // });
+      // const data = await response.json();
+      
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao consultar boletos. Verifique suas configurações.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -64,6 +135,8 @@ const AnalystDashboard = () => {
                   type="text" 
                   placeholder="Digite sua chave API do Sandbox"
                   className="w-full"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
                 />
               </div>
 
@@ -74,11 +147,16 @@ const AnalystDashboard = () => {
                   type="text" 
                   placeholder="Digite a URL do Webhook"
                   className="w-full"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
                 />
               </div>
 
               {/* Save Button */}
-              <Button className="w-full bg-black text-white hover:bg-gray-800">
+              <Button 
+                className="w-full bg-black text-white hover:bg-gray-800"
+                onClick={handleSaveConfig}
+              >
                 Salvar Configurações
               </Button>
             </div>
@@ -91,9 +169,13 @@ const AnalystDashboard = () => {
                 <Input
                   type="date"
                   className="flex-1"
-                  defaultValue="2025-02-14"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
                 />
-                <Button className="bg-black text-white hover:bg-gray-800 px-6">
+                <Button 
+                  className="bg-black text-white hover:bg-gray-800 px-6"
+                  onClick={handleQueryBoletos}
+                >
                   Consultar Boletos
                 </Button>
               </div>
