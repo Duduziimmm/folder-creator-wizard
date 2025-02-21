@@ -24,7 +24,18 @@ const AuthComponent = ({ children, requiredRole }: Props) => {
           return;
         }
 
-        // Verificar se o perfil está completo
+        // Primeiro verifica se o usuário é admin
+        const { data: isAdmin } = await supabase.rpc('has_role', {
+          role_to_check: 'admin'
+        });
+
+        // Se o usuário é admin, permite acesso direto
+        if (isAdmin) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Para não-admins, verifica se o perfil está completo
         const { data: profile } = await supabase
           .from('profiles')
           .select('completed_profile')
@@ -33,17 +44,6 @@ const AuthComponent = ({ children, requiredRole }: Props) => {
 
         if (!profile?.completed_profile && window.location.pathname !== '/complete-profile') {
           navigate('/complete-profile', { replace: true });
-          return;
-        }
-
-        // Verifica se o usuário é admin
-        const { data: isAdmin } = await supabase.rpc('has_role', {
-          role_to_check: 'admin'
-        });
-
-        // Se o usuário é admin, permite acesso a qualquer página
-        if (isAdmin) {
-          setIsLoading(false);
           return;
         }
 
