@@ -174,6 +174,8 @@ const AnalystDashboard = () => {
   };
 
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
+    const customerRequestUrl = `${apiBaseUrl}/customers/${customerId}`;
+    
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy?customerId=${customerId}`,
@@ -187,11 +189,27 @@ const AnalystDashboard = () => {
         }
       );
 
+      const responseText = await response.text();
+      console.log('Resposta da consulta do cliente:', responseText);
+
+      // Salvar log da consulta do cliente
+      try {
+        await saveApiLog(
+          customerRequestUrl,
+          'GET',
+          response.status,
+          responseText
+        );
+        console.log('Log da consulta do cliente salvo com sucesso');
+      } catch (logError) {
+        console.error('Erro ao salvar log da consulta do cliente:', logError);
+      }
+
       if (!response.ok) {
         throw new Error('Erro ao consultar dados do cliente');
       }
 
-      const data = await response.json();
+      const data = JSON.parse(responseText);
       console.log('Dados do cliente:', data);
       return data;
     } catch (error) {
@@ -293,11 +311,11 @@ const AnalystDashboard = () => {
         }
       );
 
-      console.log('Status da resposta:', response.status);
+      console.log('Status da resposta dos boletos:', response.status);
       const responseText = await response.text();
-      console.log('Resposta da API:', responseText);
+      console.log('Resposta da API de boletos:', responseText);
 
-      // Salvar o log da consulta
+      // Salvar o log da consulta de boletos
       try {
         await saveApiLog(
           requestUrl,
@@ -305,9 +323,9 @@ const AnalystDashboard = () => {
           response.status,
           responseText
         );
-        console.log('Log da consulta salvo com sucesso');
+        console.log('Log da consulta de boletos salvo com sucesso');
       } catch (logError) {
-        console.error('Erro ao salvar log:', logError);
+        console.error('Erro ao salvar log dos boletos:', logError);
         toast({
           title: "Aviso",
           description: "A consulta foi realizada, mas houve um erro ao salvar o histórico.",
@@ -337,12 +355,20 @@ const AnalystDashboard = () => {
           });
         } catch (error) {
           console.error(`Erro ao processar pagamento ${payment.id}:`, error);
+          
+          // Mesmo com erro, adiciona o pagamento à lista com os dados disponíveis
           processedPayments.push({
             id: payment.id,
             value: payment.value,
             dueDate: payment.dueDate,
             status: payment.status,
-            customer: payment.customer
+            customer: payment.customer // usa o ID do cliente já que não conseguiu buscar o nome
+          });
+          
+          toast({
+            title: "Aviso",
+            description: `Erro ao buscar dados do cliente ${payment.customer}`,
+            variant: "destructive",
           });
         }
       }
