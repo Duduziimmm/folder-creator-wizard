@@ -81,12 +81,29 @@ serve(async (req) => {
       }
     })
 
-    const responseData = await response.text()
-    console.log(`Resposta da API (${requestType}):`, responseData)
+    // Tentar obter o corpo da resposta como JSON primeiro
+    let responseData;
+    try {
+      responseData = await response.json();
+      console.log(`Resposta da API (${requestType}):`, responseData);
+    } catch (error) {
+      console.error('Erro ao fazer parse da resposta como JSON:', error);
+      // Se falhar, pegar como texto para debug
+      const textResponse = await response.text();
+      console.error('Resposta raw:', textResponse);
+      
+      return new Response(
+        JSON.stringify({ error: 'Erro ao processar resposta da API' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      )
+    }
 
-    // Retornar a resposta da API
+    // Se chegou aqui, temos um JSON válido
     return new Response(
-      responseData,
+      JSON.stringify(responseData),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: response.status
@@ -96,7 +113,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Erro na Edge Function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'Erro interno no servidor',
+        details: error.message
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
