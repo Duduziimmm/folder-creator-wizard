@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, asaas-environment, access_token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, asaas-environment, access_token, request-type, customer-id, due-date',
 }
 
 serve(async (req) => {
@@ -13,11 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url)
-    const dueDate = url.searchParams.get('dueDate')
-    const customerId = url.searchParams.get('customerId')
     const environment = req.headers.get('asaas-environment') || 'sandbox'
     const accessToken = req.headers.get('access_token')
+    const requestType = req.headers.get('request-type')
 
     if (!accessToken) {
       return new Response(
@@ -33,46 +31,49 @@ serve(async (req) => {
       ? 'https://api.asaas.com/v3'
       : 'https://api-sandbox.asaas.com/v3'
 
-    // Se tiver customerId, consulta dados do cliente
-    if (customerId) {
-      console.log(`Consultando dados do cliente ${customerId}`)
-      const customerUrl = `${apiBaseUrl}/customers/${customerId}`
-      
-      const customerResponse = await fetch(customerUrl, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'access_token': accessToken
-        }
-      })
-
-      const customerData = await customerResponse.json()
-      console.log('Dados do cliente:', customerData)
-
-      return new Response(
-        JSON.stringify(customerData),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: customerResponse.status
-        }
-      )
+    let apiUrl = '';
+    
+    // Determinar a URL da API baseado no tipo de requisição
+    if (requestType === 'customer') {
+      const customerId = req.headers.get('customer-id');
+      if (!customerId) {
+        return new Response(
+          JSON.stringify({ error: 'ID do cliente não fornecido' }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+      apiUrl = `${apiBaseUrl}/customers/${customerId}`;
+      console.log('Consultando cliente:', apiUrl);
+    } 
+    else if (requestType === 'payments') {
+      const dueDate = req.headers.get('due-date');
+      if (!dueDate) {
+        return new Response(
+          JSON.stringify({ error: 'Data de vencimento não fornecida' }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+      apiUrl = `${apiBaseUrl}/payments?dueDate[ge]=${dueDate}&dueDate[le]=${dueDate}`;
+      console.log('Consultando pagamentos:', apiUrl);
     }
-
-    // Se não tiver customerId, consulta cobranças por data
-    if (!dueDate) {
+    else {
       return new Response(
-        JSON.stringify({ error: 'Data de vencimento não fornecida' }),
+        JSON.stringify({ error: 'Tipo de requisição inválido' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
-
-    console.log(`Consultando cobranças para a data ${dueDate}`)
-    const paymentsUrl = `${apiBaseUrl}/payments?dueDate[ge]=${dueDate}&dueDate[le]=${dueDate}`
     
-    const paymentsResponse = await fetch(paymentsUrl, {
+    // Fazer a requisição para a API do Asaas
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'accept': 'application/json',
@@ -80,14 +81,15 @@ serve(async (req) => {
       }
     })
 
-    const paymentsData = await paymentsResponse.json()
-    console.log('Dados das cobranças:', paymentsData)
+    const responseData = await response.text()
+    console.log(`Resposta da API (${requestType}):`, responseData)
 
+    // Retornar a resposta da API
     return new Response(
-      JSON.stringify(paymentsData),
+      responseData,
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: paymentsResponse.status
+        status: response.status
       }
     )
 
@@ -102,4 +104,3 @@ serve(async (req) => {
     )
   }
 })
-
