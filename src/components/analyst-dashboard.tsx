@@ -335,22 +335,38 @@ const AnalystDashboard = () => {
     const requestUrl = `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
 
     try {
-      const { data: responseData, error } = await supabase.functions.invoke('asaas-proxy', {
-        body: {},
-        headers: {
-          'access_token': apiKey,
-          'asaas-environment': isProd ? 'prod' : 'sandbox',
-          'request-type': 'payments',
-          'due-date': selectedDate
-        }
+      console.log('Chamando Edge Function com os parâmetros:', {
+        apiKey,
+        environment: isProd ? 'prod' : 'sandbox',
+        requestType: 'payments',
+        dueDate: selectedDate
       });
 
-      if (error) {
-        console.error('Erro na chamada da Edge Function:', error);
-        throw new Error(error.message);
+      const { data: responseData, error: functionError } = await supabase.functions.invoke(
+        'asaas-proxy',
+        {
+          body: {
+            dueDate: selectedDate
+          },
+          headers: {
+            'access_token': apiKey,
+            'asaas-environment': isProd ? 'prod' : 'sandbox',
+            'request-type': 'payments',
+            'due-date': selectedDate
+          }
+        }
+      );
+
+      if (functionError) {
+        console.error('Erro na Edge Function:', functionError);
+        throw new Error(`Erro na Edge Function: ${functionError.message}`);
       }
 
-      console.log('Resposta dos boletos:', responseData);
+      if (!responseData) {
+        throw new Error('Nenhum dado retornado pela Edge Function');
+      }
+
+      console.log('Resposta da Edge Function:', responseData);
 
       await saveApiLog(
         requestUrl,
@@ -368,20 +384,32 @@ const AnalystDashboard = () => {
         try {
           console.log('Processando pagamento:', payment.id);
           
-          const { data: customerData, error: customerError } = await supabase.functions.invoke('asaas-proxy', {
-            body: {},
-            headers: {
-              'access_token': apiKey,
-              'asaas-environment': isProd ? 'prod' : 'sandbox',
-              'request-type': 'customer',
-              'customer-id': payment.customer
+          console.log('Consultando cliente:', payment.customer);
+          const { data: customerData, error: customerError } = await supabase.functions.invoke(
+            'asaas-proxy',
+            {
+              body: {
+                customerId: payment.customer
+              },
+              headers: {
+                'access_token': apiKey,
+                'asaas-environment': isProd ? 'prod' : 'sandbox',
+                'request-type': 'customer',
+                'customer-id': payment.customer
+              }
             }
-          });
+          );
 
           if (customerError) {
             console.error('Erro ao consultar cliente:', customerError);
             throw customerError;
           }
+
+          if (!customerData) {
+            throw new Error('Nenhum dado do cliente retornado');
+          }
+
+          console.log('Dados do cliente:', customerData);
 
           await saveApiLog(
             `${apiBaseUrl}/customers/${payment.customer}`,
