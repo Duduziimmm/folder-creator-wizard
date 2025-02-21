@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -64,10 +65,13 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api-sandbox.asaas.com/api/v3/payments', {
+      const response = await fetch('https://api.asaas.com/v3/payments', {
         headers: {
-          'access_token': savedApiKey
-        }
+          'accept': 'application/json',
+          'access_token': savedApiKey,
+          'Content-Type': 'application/json'
+        },
+        method: 'GET'
       });
 
       if (!response.ok) {
@@ -75,7 +79,17 @@ const AnalystDashboard = () => {
       }
 
       const data = await response.json();
-      setBoletos(data.data || []);
+      const formattedData = data.data.map((payment: any) => ({
+        id: payment.id,
+        value: payment.value,
+        dueDate: payment.dueDate,
+        status: payment.status,
+        customer: payment.customer,
+        billingType: payment.billingType,
+        invoiceUrl: payment.invoiceUrl
+      }));
+
+      setBoletos(formattedData);
       
       toast({
         title: "Sucesso",
