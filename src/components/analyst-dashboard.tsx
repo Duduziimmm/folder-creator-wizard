@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -240,14 +239,19 @@ const AnalystDashboard = () => {
     console.log('URL base:', apiBaseUrl);
     console.log('Customer ID:', customerId);
     
+    const customerRequestUrl = `${apiBaseUrl}/customers/${customerId}`;
+    
     try {
       const response = await fetch(
-        `${apiBaseUrl}/customers/${customerId}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
         {
           method: 'GET',
           headers: {
-            'accept': 'application/json',
-            'access_token': apiKey
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'access_token': apiKey,
+            'asaas-environment': isProd ? 'prod' : 'sandbox',
+            'request-type': 'customer',
+            'customer-id': customerId
           }
         }
       );
@@ -257,7 +261,7 @@ const AnalystDashboard = () => {
 
       try {
         await saveApiLog(
-          `${apiBaseUrl}/customers/${customerId}`,
+          customerRequestUrl,
           'GET',
           response.status,
           responseText
@@ -276,7 +280,14 @@ const AnalystDashboard = () => {
         throw new Error(`Erro ao consultar dados do cliente: ${responseText}`);
       }
 
-      const data = JSON.parse(responseText);
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+
       console.log('Dados do cliente:', data);
       return data;
     } catch (error) {
@@ -325,13 +336,15 @@ const AnalystDashboard = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy?dueDate=${selectedDate}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
         {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             'access_token': apiKey,
-            'asaas-environment': isProd ? 'prod' : 'sandbox'
+            'asaas-environment': isProd ? 'prod' : 'sandbox',
+            'request-type': 'payments',
+            'due-date': selectedDate
           }
         }
       );
@@ -361,7 +374,14 @@ const AnalystDashboard = () => {
         throw new Error(`Erro ao consultar a API: ${responseText}`);
       }
 
-      const responseData = JSON.parse(responseText);
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+
       console.log('Dados dos pagamentos:', responseData);
 
       if (!responseData.data || !Array.isArray(responseData.data)) {
@@ -389,7 +409,7 @@ const AnalystDashboard = () => {
             value: payment.value,
             dueDate: payment.dueDate,
             status: payment.status,
-            customer: payment.customer // usa o ID do cliente já que não conseguiu buscar o nome
+            customer: payment.customer
           });
           
           toast({
