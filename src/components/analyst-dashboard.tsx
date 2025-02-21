@@ -4,10 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import BoletosTable from "./shared/boletos-table";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Boleto {
   id: string;
@@ -16,61 +15,28 @@ interface Boleto {
   status: string;
 }
 
-interface ApiConfig {
-  api_key: string;
-  webhook_url: string;
-  is_prod: boolean;
-}
-
 const AnalystDashboard = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [selectedDate, setSelectedDate] = useState('2025-02-14');
   const [boletos, setBoletos] = useState<Boleto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isProd, setIsProd] = useState(false);
 
   const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/api/v3';
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate('/login');
-        return;
-      }
-      loadConfiguration();
-    };
+    const savedApiKey = localStorage.getItem('asaasApiKey');
+    const savedWebhookUrl = localStorage.getItem('webhookUrl');
+    const savedIsProd = localStorage.getItem('isProd') === 'true';
+    
+    if (savedApiKey) setApiKey(savedApiKey);
+    if (savedWebhookUrl) setWebhookUrl(savedWebhookUrl);
+    setIsProd(savedIsProd);
+  }, []);
 
-    checkSession();
-  }, [navigate]);
-
-  const loadConfiguration = async () => {
-    try {
-      const { data: configs, error } = await supabase
-        .from('api_configurations')
-        .select('*')
-        .single();
-
-      if (error) {
-        console.error('Error loading configurations:', error);
-        return;
-      }
-
-      if (configs) {
-        setApiKey(configs.api_key);
-        setWebhookUrl(configs.webhook_url);
-        setIsProd(configs.is_prod);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const handleSaveConfig = async () => {
+  const handleSaveConfig = () => {
     if (!apiKey || !webhookUrl) {
       toast({
         title: "Erro",
@@ -80,59 +46,19 @@ const AnalystDashboard = () => {
       return;
     }
 
-    setIsSaving(true);
-    try {
-      const { data: existingConfig } = await supabase
-        .from('api_configurations')
-        .select('*')
-        .single();
+    localStorage.setItem('asaasApiKey', apiKey);
+    localStorage.setItem('webhookUrl', webhookUrl);
+    localStorage.setItem('isProd', isProd.toString());
 
-      const configData = {
-        api_key: apiKey,
-        webhook_url: webhookUrl,
-        is_prod: isProd,
-        user_id: (await supabase.auth.getUser()).data.user?.id
-      };
-
-      let error;
-
-      if (existingConfig) {
-        // Update existing configuration
-        const { error: updateError } = await supabase
-          .from('api_configurations')
-          .update(configData)
-          .eq('id', existingConfig.id);
-        error = updateError;
-      } else {
-        // Insert new configuration
-        const { error: insertError } = await supabase
-          .from('api_configurations')
-          .insert([configData]);
-        error = insertError;
-      }
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Configurações salvas com sucesso!",
-      });
-    } catch (error) {
-      console.error('Error saving configuration:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar as configurações.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    toast({
+      title: "Sucesso",
+      description: "Configurações salvas com sucesso!",
+    });
   };
 
-  const handleEnvironmentChange = async (checked: boolean) => {
+  const handleEnvironmentChange = (checked: boolean) => {
     setIsProd(checked);
+    localStorage.setItem('isProd', checked.toString());
     setBoletos([]); // Limpa os boletos ao trocar de ambiente
     
     toast({
@@ -142,12 +68,10 @@ const AnalystDashboard = () => {
   };
 
   const handleQueryBoletos = async () => {
-    const { data: config } = await supabase
-      .from('api_configurations')
-      .select('*')
-      .single();
+    const savedApiKey = localStorage.getItem('asaasApiKey');
+    const savedWebhookUrl = localStorage.getItem('webhookUrl');
 
-    if (!config?.api_key || !config?.webhook_url) {
+    if (!savedApiKey || !savedWebhookUrl) {
       toast({
         title: "Erro",
         description: "Configure primeiro a Chave API e Webhook URL nas configurações.",
@@ -161,7 +85,7 @@ const AnalystDashboard = () => {
       const response = await fetch(`${apiBaseUrl}/payments`, {
         headers: {
           'accept': 'application/json',
-          'access_token': config.api_key,
+          'access_token': savedApiKey,
           'Content-Type': 'application/json'
         },
         method: 'GET'
@@ -281,9 +205,8 @@ const AnalystDashboard = () => {
               <Button 
                 className="w-full bg-black text-white hover:bg-gray-800"
                 onClick={handleSaveConfig}
-                disabled={isSaving}
               >
-                {isSaving ? "Salvando..." : "Salvar Configurações"}
+                Salvar Configurações
               </Button>
             </div>
           </TabsContent>
