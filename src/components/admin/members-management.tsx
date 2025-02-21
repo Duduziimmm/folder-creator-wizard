@@ -26,25 +26,29 @@ const MembersManagement = () => {
 
   const loadMembers = async () => {
     try {
-      const { data: roles, error } = await supabase
+      const { data, error } = await supabase
         .from('user_roles')
         .select(`
           id,
           role,
           created_at,
-          profiles:profiles!user_id(email)
+          user_id,
+          profiles (
+            email
+          )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setMembers(roles.map(role => ({
-        id: role.id,
-        email: role.profiles?.email || '',
-        role: role.role,
-        created_at: role.created_at
+      setMembers(data.map(item => ({
+        id: item.id,
+        email: item.profiles?.email || '',
+        role: item.role,
+        created_at: item.created_at
       })));
     } catch (error) {
+      console.error('Error loading members:', error);
       toast({
         variant: "destructive",
         title: "Erro ao carregar membros",
