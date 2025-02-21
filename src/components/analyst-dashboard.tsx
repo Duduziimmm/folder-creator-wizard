@@ -312,15 +312,29 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     console.log('Iniciando consulta de boletos...');
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Variáveis de ambiente não configuradas:', { supabaseUrl, supabaseAnonKey });
+      toast({
+        title: "Erro de Configuração",
+        description: "Erro nas configurações do ambiente. Por favor, contate o suporte.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     const requestUrl = `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
+        `${supabaseUrl}/functions/v1/asaas-proxy`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
             'access_token': apiKey,
             'asaas-environment': isProd ? 'prod' : 'sandbox',
@@ -335,6 +349,14 @@ const AnalystDashboard = () => {
         console.error('Resposta não é JSON:', contentType);
         const text = await response.text();
         console.error('Conteúdo da resposta:', text);
+        
+        await saveApiLog(
+          requestUrl,
+          'GET',
+          response.status,
+          text
+        );
+        
         throw new Error('Resposta inválida do servidor. Por favor, tente novamente.');
       }
 
@@ -342,6 +364,12 @@ const AnalystDashboard = () => {
       console.log('Resposta dos boletos:', responseData);
 
       if (!response.ok) {
+        await saveApiLog(
+          requestUrl,
+          'GET',
+          response.status,
+          JSON.stringify(responseData)
+        );
         throw new Error(responseData.error || 'Erro ao consultar boletos');
       }
 
@@ -361,11 +389,11 @@ const AnalystDashboard = () => {
         try {
           console.log('Processando pagamento:', payment.id);
           const customerResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
+            `${supabaseUrl}/functions/v1/asaas-proxy`,
             {
               method: 'GET',
               headers: {
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                'Authorization': `Bearer ${supabaseAnonKey}`,
                 'Content-Type': 'application/json',
                 'access_token': apiKey,
                 'asaas-environment': isProd ? 'prod' : 'sandbox',
@@ -380,12 +408,26 @@ const AnalystDashboard = () => {
             console.error('Resposta do cliente não é JSON:', customerContentType);
             const text = await customerResponse.text();
             console.error('Conteúdo da resposta do cliente:', text);
+            
+            await saveApiLog(
+              `${apiBaseUrl}/customers/${payment.customer}`,
+              'GET',
+              customerResponse.status,
+              text
+            );
+            
             throw new Error('Resposta inválida ao consultar cliente');
           }
 
           const customerData = await customerResponse.json();
           
           if (!customerResponse.ok) {
+            await saveApiLog(
+              `${apiBaseUrl}/customers/${payment.customer}`,
+              'GET',
+              customerResponse.status,
+              JSON.stringify(customerData)
+            );
             throw new Error(customerData.error || 'Erro ao consultar cliente');
           }
 
