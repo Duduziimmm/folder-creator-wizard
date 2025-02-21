@@ -10,10 +10,23 @@ const CoordinatorDashboard = () => {
 
   React.useEffect(() => {
     const fetchBoletos = async () => {
-      const { data: payments } = await supabase
+      // Buscar os registros de pagamento
+      const { data: payments, error } = await supabase
         .from('payment_records')
-        .select('*')
+        .select(`
+          customer_id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          payment_value,
+          due_date
+        `)
         .order('due_date', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar boletos:', error);
+        return;
+      }
 
       if (payments) {
         setBoletos(payments.map(payment => ({
