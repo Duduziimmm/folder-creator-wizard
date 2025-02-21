@@ -37,7 +37,7 @@ const AnalystDashboard = () => {
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [configId, setConfigId] = useState<string | null>(null);
 
-  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3/payments' : 'https://api-sandbox.asaas.com/v3/payments';
+  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3';
 
   useEffect(() => {
     loadConfiguration();
@@ -174,6 +174,66 @@ const AnalystDashboard = () => {
     });
   };
 
+  const saveApiLog = async (url: string, method: string, status: number | null, responseBody: string | null) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('Usuário não autenticado ao tentar salvar log');
+        return;
+      }
+
+      let currentConfigId = configId;
+      if (!currentConfigId) {
+        const { data: configs } = await supabase
+          .from('api_configurations')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (configs) {
+          currentConfigId = configs.id;
+        }
+      }
+
+      console.log('Tentando salvar log com dados:', {
+        user_id: user.id,
+        api_configuration_id: currentConfigId,
+        request_url: url,
+        request_method: method,
+        response_status: status,
+        response_body: responseBody
+      });
+
+      const { data, error } = await supabase
+        .from('api_logs')
+        .insert([{
+          user_id: user.id,
+          api_configuration_id: currentConfigId,
+          request_url: url,
+          request_method: method,
+          response_status: status,
+          response_body: responseBody
+        }])
+        .select();
+
+      if (error) {
+        console.error('Erro ao salvar log:', error);
+        throw error;
+      }
+
+      console.log('Log salvo com sucesso:', data);
+      
+      await loadApiLogs();
+      
+      return data;
+    } catch (error) {
+      console.error('Erro ao salvar log:', error);
+      throw error;
+    }
+  };
+
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
     const customerRequestUrl = `${apiBaseUrl}/customers/${customerId}`;
     
@@ -193,14 +253,22 @@ const AnalystDashboard = () => {
       const responseText = await response.text();
       console.log('Resposta da consulta do cliente:', responseText);
 
-      // Salvar log da consulta do cliente
-      await saveApiLog(
-        customerRequestUrl,
-        'GET',
-        response.status,
-        responseText
-      );
-      console.log('Log da consulta do cliente salvo com sucesso');
+      try {
+        await saveApiLog(
+          customerRequestUrl,
+          'GET',
+          response.status,
+          responseText
+        );
+        console.log('Log da consulta do cliente salvo com sucesso');
+      } catch (logError) {
+        console.error('Erro ao salvar log da consulta do cliente:', logError);
+        toast({
+          variant: "destructive",
+          title: "Aviso",
+          description: "Erro ao salvar o log da consulta do cliente.",
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Erro ao consultar dados do cliente: ${responseText}`);
@@ -239,48 +307,6 @@ const AnalystDashboard = () => {
     }
   };
 
-  const saveApiLog = async (url: string, method: string, status: number | null, responseBody: string | null) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('Usuário não autenticado ao tentar salvar log');
-        return;
-      }
-
-      console.log('Tentando salvar log com dados:', {
-        user_id: user.id,
-        api_configuration_id: configId,
-        request_url: url,
-        request_method: method,
-        response_status: status,
-        response_body: responseBody
-      });
-
-      const { data, error } = await supabase
-        .from('api_logs')
-        .insert([{
-          user_id: user.id,
-          api_configuration_id: configId,
-          request_url: url,
-          request_method: method,
-          response_status: status,
-          response_body: responseBody
-        }])
-        .select();
-
-      if (error) {
-        console.error('Erro ao salvar log:', error);
-        throw error;
-      }
-
-      console.log('Log salvo com sucesso:', data);
-      return data;
-    } catch (error) {
-      console.error('Erro ao salvar log:', error);
-      throw error;
-    }
-  };
-
   const handleQueryBoletos = async () => {
     if (!configId || !apiKey) {
       toast({
@@ -312,7 +338,6 @@ const AnalystDashboard = () => {
       const responseText = await response.text();
       console.log('Resposta da API de boletos:', responseText);
 
-      // Salvar o log da consulta de boletos
       try {
         await saveApiLog(
           requestUrl,
