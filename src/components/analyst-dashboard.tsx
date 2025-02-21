@@ -335,54 +335,29 @@ const AnalystDashboard = () => {
     const requestUrl = `${apiBaseUrl}/payments?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'access_token': apiKey,
-            'asaas-environment': isProd ? 'prod' : 'sandbox',
-            'request-type': 'payments',
-            'due-date': selectedDate
-          }
+      const { data: responseData, error } = await supabase.functions.invoke('asaas-proxy', {
+        body: {},
+        headers: {
+          'access_token': apiKey,
+          'asaas-environment': isProd ? 'prod' : 'sandbox',
+          'request-type': 'payments',
+          'due-date': selectedDate
         }
+      });
+
+      if (error) {
+        console.error('Erro na chamada da Edge Function:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('Resposta dos boletos:', responseData);
+
+      await saveApiLog(
+        requestUrl,
+        'GET',
+        200,
+        JSON.stringify(responseData)
       );
-
-      console.log('Status da resposta dos boletos:', response.status);
-      const responseText = await response.text();
-      console.log('Resposta da API de boletos:', responseText);
-
-      try {
-        await saveApiLog(
-          requestUrl,
-          'GET',
-          response.status,
-          responseText
-        );
-        console.log('Log da consulta de boletos salvo com sucesso');
-      } catch (logError) {
-        console.error('Erro ao salvar log dos boletos:', logError);
-        toast({
-          title: "Aviso",
-          description: "A consulta foi realizada, mas houve um erro ao salvar o histórico.",
-          variant: "destructive",
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`Erro ao consultar a API: ${responseText}`);
-      }
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Erro ao fazer parse da resposta:', parseError);
-        throw new Error('Resposta inválida do servidor');
-      }
-
-      console.log('Dados dos pagamentos:', responseData);
 
       if (!responseData.data || !Array.isArray(responseData.data)) {
         throw new Error('Formato de resposta inválido');
@@ -392,8 +367,31 @@ const AnalystDashboard = () => {
       for (const payment of responseData.data) {
         try {
           console.log('Processando pagamento:', payment.id);
-          const customerData = await fetchCustomerDetails(payment.customer, apiKey);
+          
+          const { data: customerData, error: customerError } = await supabase.functions.invoke('asaas-proxy', {
+            body: {},
+            headers: {
+              'access_token': apiKey,
+              'asaas-environment': isProd ? 'prod' : 'sandbox',
+              'request-type': 'customer',
+              'customer-id': payment.customer
+            }
+          });
+
+          if (customerError) {
+            console.error('Erro ao consultar cliente:', customerError);
+            throw customerError;
+          }
+
+          await saveApiLog(
+            `${apiBaseUrl}/customers/${payment.customer}`,
+            'GET',
+            200,
+            JSON.stringify(customerData)
+          );
+
           await savePaymentRecord(payment, customerData);
+          
           processedPayments.push({
             id: payment.id,
             value: payment.value,
@@ -403,19 +401,12 @@ const AnalystDashboard = () => {
           });
         } catch (error) {
           console.error(`Erro ao processar pagamento ${payment.id}:`, error);
-          
           processedPayments.push({
             id: payment.id,
             value: payment.value,
             dueDate: payment.dueDate,
             status: payment.status,
             customer: payment.customer
-          });
-          
-          toast({
-            title: "Aviso",
-            description: `Erro ao buscar dados do cliente ${payment.customer}`,
-            variant: "destructive",
           });
         }
       }
@@ -424,22 +415,15 @@ const AnalystDashboard = () => {
       
       toast({
         title: "Sucesso",
-        description: "Boletos consultados e dados salvos com sucesso!",
+        description: "Boletos consultados com sucesso!",
       });
-
-      await loadApiLogs();
 
     } catch (error) {
       console.error('Erro completo na requisição:', error);
       
-      let errorMessage = "Erro ao consultar boletos. ";
-      if (error instanceof Error) {
-        errorMessage += error.message;
-      }
-
       toast({
         title: "Erro",
-        description: errorMessage,
+        description: error.message || "Erro ao consultar boletos",
         variant: "destructive",
       });
       setBoletos([]);
