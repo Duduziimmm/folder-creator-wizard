@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import LoginForm from "./components/login-form";
 import AnalystDashboard from "./components/analyst-dashboard";
 import CoordinatorDashboard from "./components/coordinator-dashboard";
+import MembersManagement from "./components/admin/members-management";
 import AuthComponent from "./components/AuthComponent";
 
 const queryClient = new QueryClient();
@@ -25,7 +26,7 @@ const App = () => (
           <Route
             path="/analyst"
             element={
-              <AuthComponent>
+              <AuthComponent requiredRole="analyst">
                 <AnalystDashboard />
               </AuthComponent>
             }
@@ -33,8 +34,16 @@ const App = () => (
           <Route
             path="/coordinator"
             element={
-              <AuthComponent>
+              <AuthComponent requiredRole="coordinator">
                 <CoordinatorDashboard />
+              </AuthComponent>
+            }
+          />
+          <Route
+            path="/admin/members"
+            element={
+              <AuthComponent requiredRole="admin">
+                <MembersManagement />
               </AuthComponent>
             }
           />

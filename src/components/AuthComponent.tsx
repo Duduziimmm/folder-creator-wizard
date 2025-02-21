@@ -1,21 +1,59 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "./ui/use-toast";
 
-const AuthComponent = ({ children }: { children: React.ReactNode }) => {
+interface Props {
+  children: React.ReactNode;
+  requiredRole?: "admin" | "coordinator" | "analyst";
+}
+
+const AuthComponent = ({ children, requiredRole }: Props) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasRequiredRole, setHasRequiredRole] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/login');
-      } else {
-        setIsAuthenticated(true);
+        return;
       }
+
+      if (requiredRole) {
+        const { data: hasRole, error } = await supabase.rpc('has_role', {
+          role_to_check: requiredRole
+        });
+
+        if (error) {
+          console.error('Error checking role:', error);
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Erro ao verificar permissões."
+          });
+          return;
+        }
+
+        if (!hasRole) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para acessar esta página."
+          });
+          navigate('/analyst');
+          return;
+        }
+
+        setHasRequiredRole(true);
+      }
+
+      setIsAuthenticated(true);
       setIsLoading(false);
     };
 
@@ -23,7 +61,7 @@ const AuthComponent = ({ children }: { children: React.ReactNode }) => {
       if (event === 'SIGNED_OUT') {
         navigate('/login');
       } else if (event === 'SIGNED_IN' && session) {
-        setIsAuthenticated(true);
+        checkAuth();
       }
     });
 
@@ -32,7 +70,7 @@ const AuthComponent = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, requiredRole]);
 
   if (isLoading) {
     return (
@@ -42,7 +80,7 @@ const AuthComponent = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || (requiredRole && !hasRequiredRole)) {
     return null;
   }
 
