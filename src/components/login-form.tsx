@@ -19,7 +19,19 @@ const LoginForm = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Verifica se o usuário é admin
+        // Primeiro verifica se o perfil está completo
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('completed_profile')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile?.completed_profile) {
+          navigate('/complete-profile');
+          return;
+        }
+
+        // Se o perfil estiver completo, verifica as roles
         const { data: isAdmin } = await supabase.rpc('has_role', {
           role_to_check: 'admin'
         });
@@ -29,7 +41,6 @@ const LoginForm = () => {
           return;
         }
 
-        // Se não for admin, verifica a role do usuário
         const { data: userRole } = await supabase
           .from('user_roles')
           .select('role')
@@ -71,7 +82,23 @@ const LoginForm = () => {
       }
 
       if (data.user) {
-        // Verifica se o usuário é admin
+        // Primeiro verifica se o perfil está completo
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('completed_profile')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!profile?.completed_profile) {
+          toast({
+            title: "Complete seu cadastro",
+            description: "Por favor, complete seu perfil para continuar."
+          });
+          navigate('/complete-profile');
+          return;
+        }
+
+        // Se o perfil estiver completo, verifica as roles
         const { data: isAdmin } = await supabase.rpc('has_role', {
           role_to_check: 'admin'
         });
@@ -86,7 +113,6 @@ const LoginForm = () => {
           return;
         }
 
-        // Se não for admin, verifica a role do usuário
         const { data: userRole } = await supabase
           .from('user_roles')
           .select('role')
