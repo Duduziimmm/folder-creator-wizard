@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -235,17 +236,18 @@ const AnalystDashboard = () => {
   };
 
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
-    const customerRequestUrl = `${apiBaseUrl}/customers/${customerId}`;
+    console.log(`Consultando cliente no ambiente: ${isProd ? 'Produção' : 'Sandbox'}`);
+    console.log('URL base:', apiBaseUrl);
+    console.log('Customer ID:', customerId);
     
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-proxy?customerId=${customerId}`,
+        `${apiBaseUrl}/customers/${customerId}`,
         {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'access_token': apiKey,
-            'asaas-environment': isProd ? 'prod' : 'sandbox'
+            'accept': 'application/json',
+            'access_token': apiKey
           }
         }
       );
@@ -255,7 +257,7 @@ const AnalystDashboard = () => {
 
       try {
         await saveApiLog(
-          customerRequestUrl,
+          `${apiBaseUrl}/customers/${customerId}`,
           'GET',
           response.status,
           responseText
