@@ -276,6 +276,7 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     console.log('Iniciando consulta de boletos...');
+    const requestUrl = `${apiBaseUrl}?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`;
 
     try {
       const response = await fetch(
@@ -294,15 +295,22 @@ const AnalystDashboard = () => {
       const responseText = await response.text();
       console.log('Resposta da API:', responseText);
 
+      // Salvar o log da consulta
       try {
         await saveApiLog(
-          `${apiBaseUrl}?dueDate[ge]=${selectedDate}&dueDate[le]=${selectedDate}`,
+          requestUrl,
           'GET',
           response.status,
           responseText
         );
+        console.log('Log da consulta salvo com sucesso');
       } catch (logError) {
         console.error('Erro ao salvar log:', logError);
+        toast({
+          title: "Aviso",
+          description: "A consulta foi realizada, mas houve um erro ao salvar o histórico.",
+          variant: "destructive",
+        });
       }
 
       if (!response.ok) {
@@ -344,6 +352,7 @@ const AnalystDashboard = () => {
         description: "Boletos consultados e dados salvos com sucesso!",
       });
 
+      // Recarregar logs após uma consulta bem-sucedida
       await loadApiLogs();
 
     } catch (error) {
