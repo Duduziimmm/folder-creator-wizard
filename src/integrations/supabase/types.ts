@@ -39,6 +39,47 @@ export type Database = {
         }
         Relationships: []
       }
+      api_logs: {
+        Row: {
+          api_configuration_id: string | null
+          created_at: string
+          id: string
+          request_method: string
+          request_url: string
+          response_body: string | null
+          response_status: number | null
+          user_id: string
+        }
+        Insert: {
+          api_configuration_id?: string | null
+          created_at?: string
+          id?: string
+          request_method: string
+          request_url: string
+          response_body?: string | null
+          response_status?: number | null
+          user_id: string
+        }
+        Update: {
+          api_configuration_id?: string | null
+          created_at?: string
+          id?: string
+          request_method?: string
+          request_url?: string
+          response_body?: string | null
+          response_status?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_logs_api_configuration_id_fkey"
+            columns: ["api_configuration_id"]
+            isOneToOne: false
+            referencedRelation: "api_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
