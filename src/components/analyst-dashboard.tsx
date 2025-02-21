@@ -193,7 +193,7 @@ const AnalystDashboard = () => {
       const response = await fetch(`${apiBaseUrl}/payments?${queryParams}`, {
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey
+          'apikey': apiKey
         }
       });
 
