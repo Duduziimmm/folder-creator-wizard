@@ -32,27 +32,9 @@ const App = () => {
                   <AdminSidebar>
                     <Routes>
                       <Route path="members" element={<MembersManagement />} />
+                      <Route path="dashboard" element={<AnalystDashboard />} />
+                      <Route path="coordinator" element={<CoordinatorDashboard />} />
                     </Routes>
-                  </AdminSidebar>
-                </AuthComponent>
-              }
-            />
-            <Route
-              path="/analyst"
-              element={
-                <AuthComponent requiredRole="admin">
-                  <AdminSidebar>
-                    <AnalystDashboard />
-                  </AdminSidebar>
-                </AuthComponent>
-              }
-            />
-            <Route
-              path="/coordinator"
-              element={
-                <AuthComponent requiredRole="admin">
-                  <AdminSidebar>
-                    <CoordinatorDashboard />
                   </AdminSidebar>
                 </AuthComponent>
               }
