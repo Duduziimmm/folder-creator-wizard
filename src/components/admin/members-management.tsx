@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase, supabaseAdmin } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Member {
   id: string;
@@ -69,26 +69,18 @@ const MembersManagement = () => {
 
     setIsLoading(true);
     try {
-      // Criar novo usuário usando o client admin
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: newMemberEmail,
-        email_confirm: true,
-        password: Math.random().toString(36).slice(-12), // Senha temporária aleatória
-        user_metadata: { role: newMemberRole }
-      });
+      // Criar novo usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(newMemberEmail);
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Erro ao criar usuário");
+      if (authError) {
+        throw authError;
+      }
 
-      // Enviar email de redefinição de senha
-      const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email: newMemberEmail,
-      });
+      if (!authData.user) {
+        throw new Error("Erro ao criar usuário");
+      }
 
-      if (resetError) throw resetError;
-
-      // Adicionar role ao usuário
+      // Adiciona a role ao usuário
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert([{
