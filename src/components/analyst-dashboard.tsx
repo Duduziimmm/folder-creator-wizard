@@ -31,7 +31,7 @@ const AnalystDashboard = () => {
   const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [selectedDate, setSelectedDate] = useState('2025-02-14');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [boletos, setBoletos] = useState<Boleto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProd, setIsProd] = useState(false);
