@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +16,15 @@ interface Boleto {
   status: string;
 }
 
+interface ApiLog {
+  id: string;
+  request_url: string;
+  request_method: string;
+  response_status: number | null;
+  response_body: string | null;
+  created_at: string;
+}
+
 const AnalystDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -24,18 +34,64 @@ const AnalystDashboard = () => {
   const [boletos, setBoletos] = useState<Boleto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProd, setIsProd] = useState(false);
+  const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
+  const [configId, setConfigId] = useState<string | null>(null);
 
   const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/api/v3';
 
   useEffect(() => {
-    const savedApiKey = localStorage.getItem('asaasApiKey');
-    const savedWebhookUrl = localStorage.getItem('webhookUrl');
-    const savedIsProd = localStorage.getItem('isProd') === 'true';
-    
-    if (savedApiKey) setApiKey(savedApiKey);
-    if (savedWebhookUrl) setWebhookUrl(savedWebhookUrl);
-    setIsProd(savedIsProd);
+    loadConfiguration();
+    loadApiLogs();
   }, []);
+
+  const loadConfiguration = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: configs, error } = await supabase
+      .from('api_configurations')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar configurações",
+        description: "Ocorreu um erro ao carregar suas configurações."
+      });
+      return;
+    }
+
+    if (configs) {
+      setApiKey(configs.api_key);
+      setWebhookUrl(configs.webhook_url);
+      setIsProd(configs.is_prod);
+      setConfigId(configs.id);
+    }
+  };
+
+  const loadApiLogs = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: logs, error } = await supabase
+      .from('api_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar logs",
+        description: "Ocorreu um erro ao carregar o histórico de consultas."
+      });
+      return;
+    }
+
+    setApiLogs(logs || []);
+  };
 
   const handleLogout = async () => {
     try {
@@ -54,7 +110,7 @@ const AnalystDashboard = () => {
     }
   };
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     if (!apiKey || !webhookUrl) {
       toast({
         title: "Erro",
@@ -64,9 +120,42 @@ const AnalystDashboard = () => {
       return;
     }
 
-    localStorage.setItem('asaasApiKey', apiKey);
-    localStorage.setItem('webhookUrl', webhookUrl);
-    localStorage.setItem('isProd', isProd.toString());
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const configData = {
+      user_id: user.id,
+      api_key: apiKey,
+      webhook_url: webhookUrl,
+      is_prod: isProd
+    };
+
+    let operation;
+    if (configId) {
+      operation = supabase
+        .from('api_configurations')
+        .update(configData)
+        .eq('id', configId);
+    } else {
+      operation = supabase
+        .from('api_configurations')
+        .insert([configData]);
+    }
+
+    const { error } = await operation;
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar configurações.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!configId) {
+      await loadConfiguration();
+    }
 
     toast({
       title: "Sucesso",
@@ -76,8 +165,7 @@ const AnalystDashboard = () => {
 
   const handleEnvironmentChange = (checked: boolean) => {
     setIsProd(checked);
-    localStorage.setItem('isProd', checked.toString());
-    setBoletos([]); // Limpa os boletos ao trocar de ambiente
+    setBoletos([]);
     
     toast({
       title: "Ambiente Alterado",
@@ -86,10 +174,7 @@ const AnalystDashboard = () => {
   };
 
   const handleQueryBoletos = async () => {
-    const savedApiKey = localStorage.getItem('asaasApiKey');
-    const savedWebhookUrl = localStorage.getItem('webhookUrl');
-
-    if (!savedApiKey || !savedWebhookUrl) {
+    if (!configId || !apiKey) {
       toast({
         title: "Erro",
         description: "Configure primeiro a Chave API e Webhook URL nas configurações.",
@@ -103,25 +188,39 @@ const AnalystDashboard = () => {
       const response = await fetch(`${apiBaseUrl}/payments`, {
         headers: {
           'accept': 'application/json',
-          'access_token': savedApiKey,
+          'access_token': apiKey,
           'Content-Type': 'application/json'
         },
         method: 'GET'
       });
 
+      const responseData = await response.json();
+      
+      // Log da consulta API
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('api_logs').insert([{
+          user_id: user.id,
+          api_configuration_id: configId,
+          request_url: `${apiBaseUrl}/payments`,
+          request_method: 'GET',
+          response_status: response.status,
+          response_body: JSON.stringify(responseData)
+        }]);
+        
+        // Recarrega os logs após nova consulta
+        loadApiLogs();
+      }
+
       if (!response.ok) {
         throw new Error('Erro ao consultar a API');
       }
 
-      const data = await response.json();
-      const formattedData = data.data.map((payment: any) => ({
+      const formattedData = responseData.data.map((payment: any) => ({
         id: payment.id,
         value: payment.value,
         dueDate: payment.dueDate,
-        status: payment.status,
-        customer: payment.customer,
-        billingType: payment.billingType,
-        invoiceUrl: payment.invoiceUrl
+        status: payment.status
       }));
 
       setBoletos(formattedData);
@@ -169,6 +268,7 @@ const AnalystDashboard = () => {
           <TabsList>
             <TabsTrigger value="config" className="px-6">Configurações</TabsTrigger>
             <TabsTrigger value="consultation" className="px-6">Consulta de Boletos</TabsTrigger>
+            <TabsTrigger value="logs" className="px-6">Histórico de Consultas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="config">
@@ -253,6 +353,51 @@ const AnalystDashboard = () => {
               </div>
 
               <BoletosTable boletos={boletos} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h2 className="text-2xl font-semibold mb-8">Histórico de Consultas</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-3 px-4 text-left">Data/Hora</th>
+                      <th className="py-3 px-4 text-left">URL</th>
+                      <th className="py-3 px-4 text-left">Método</th>
+                      <th className="py-3 px-4 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {apiLogs.map((log) => (
+                      <tr key={log.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4">{log.request_url}</td>
+                        <td className="py-3 px-4">{log.request_method}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-block px-2 py-1 rounded ${
+                            log.response_status && log.response_status < 400 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {log.response_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {apiLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-gray-500">
+                          Nenhuma consulta realizada ainda.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
