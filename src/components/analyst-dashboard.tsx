@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -179,8 +180,10 @@ const AnalystDashboard = () => {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey
-        }
+          'access_token': apiKey,
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
       });
 
       if (!response.ok) {
@@ -288,8 +291,10 @@ const AnalystDashboard = () => {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey
-        }
+          'access_token': apiKey,
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
       });
 
       console.log('Status da resposta:', response.status);
@@ -422,7 +427,7 @@ const AnalystDashboard = () => {
                   <p>
                     {isProd 
                       ? 'Ambiente de produção ativo. API Base: https://api.asaas.com/v3'
-                      : 'Ambiente de testes ativo. API Base: https://api-sandbox.asaas.com/api/v3'
+                      : 'Ambiente de testes ativo. API Base: https://api-sandbox.asaas.com/v3'
                     }
                   </p>
                 </div>
