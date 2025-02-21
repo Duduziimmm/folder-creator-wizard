@@ -22,13 +22,18 @@ const AnalystDashboard = () => {
   const [selectedDate, setSelectedDate] = useState('2025-02-14');
   const [boletos, setBoletos] = useState<Boleto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProd, setIsProd] = useState(false);
+
+  const apiBaseUrl = isProd ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/api/v3';
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('asaasApiKey');
     const savedWebhookUrl = localStorage.getItem('webhookUrl');
+    const savedIsProd = localStorage.getItem('isProd') === 'true';
     
     if (savedApiKey) setApiKey(savedApiKey);
     if (savedWebhookUrl) setWebhookUrl(savedWebhookUrl);
+    setIsProd(savedIsProd);
   }, []);
 
   const handleSaveConfig = () => {
@@ -43,10 +48,22 @@ const AnalystDashboard = () => {
 
     localStorage.setItem('asaasApiKey', apiKey);
     localStorage.setItem('webhookUrl', webhookUrl);
+    localStorage.setItem('isProd', isProd.toString());
 
     toast({
       title: "Sucesso",
       description: "Configurações salvas com sucesso!",
+    });
+  };
+
+  const handleEnvironmentChange = (checked: boolean) => {
+    setIsProd(checked);
+    localStorage.setItem('isProd', checked.toString());
+    setBoletos([]); // Limpa os boletos ao trocar de ambiente
+    
+    toast({
+      title: "Ambiente Alterado",
+      description: `Ambiente alterado para ${checked ? 'Produção' : 'Sandbox'}`,
     });
   };
 
@@ -65,7 +82,7 @@ const AnalystDashboard = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api.asaas.com/v3/payments', {
+      const response = await fetch(`${apiBaseUrl}/payments`, {
         headers: {
           'accept': 'application/json',
           'access_token': savedApiKey,
@@ -140,16 +157,26 @@ const AnalystDashboard = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="font-medium text-lg mb-1">Ambiente de Sandbox</h3>
-                    <p className="text-gray-500 text-sm">Modo de testes ativo - Usando API Sandbox</p>
+                    <p className="text-gray-500 text-sm">
+                      {isProd ? 'Modo de produção ativo' : 'Modo de testes ativo - Usando API Sandbox'}
+                    </p>
                   </div>
-                  <Switch />
+                  <Switch 
+                    checked={isProd}
+                    onCheckedChange={handleEnvironmentChange}
+                  />
                 </div>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 <div className="flex items-start gap-2">
                   <span className="text-gray-500">ℹ️</span>
-                  <p>Ambiente de testes ativo. API Base: https://api-sandbox.asaas.com/api/v3</p>
+                  <p>
+                    {isProd 
+                      ? 'Ambiente de produção ativo. API Base: https://api.asaas.com/v3'
+                      : 'Ambiente de testes ativo. API Base: https://api-sandbox.asaas.com/api/v3'
+                    }
+                  </p>
                 </div>
               </div>
 
@@ -157,7 +184,7 @@ const AnalystDashboard = () => {
                 <label className="block text-lg font-medium mb-2">Chave API do Asaas</label>
                 <Input 
                   type="text" 
-                  placeholder="Digite sua chave API do Sandbox"
+                  placeholder={`Digite sua chave API ${isProd ? 'de produção' : 'do Sandbox'}`}
                   className="w-full"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
