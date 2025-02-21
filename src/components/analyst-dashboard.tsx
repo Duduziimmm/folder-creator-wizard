@@ -174,18 +174,26 @@ const AnalystDashboard = () => {
   };
 
   const fetchCustomerDetails = async (customerId: string, apiKey: string) => {
-    const response = await fetch(`${apiBaseUrl}/customers/${customerId}`, {
-      headers: {
-        'accept': 'application/json',
-        'access_token': apiKey
+    try {
+      const response = await fetch(`${apiBaseUrl}/customers/${customerId}`, {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json',
+          'access_token': apiKey,
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao consultar dados do cliente');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Erro ao consultar dados do cliente');
+      return response.json();
+    } catch (error) {
+      console.error('Erro ao buscar detalhes do cliente:', error);
+      throw error;
     }
-
-    return response.json();
   };
 
   const savePaymentRecord = async (payment: any, customerData: any) => {
@@ -277,22 +285,29 @@ const AnalystDashboard = () => {
 
     try {
       const response = await fetch(requestUrl, {
+        method: 'GET',
         headers: {
           'accept': 'application/json',
-          'access_token': apiKey
-        }
+          'access_token': apiKey,
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
       });
 
       console.log('Status da resposta:', response.status);
       const responseText = await response.text();
       console.log('Resposta da API:', responseText);
 
-      await saveApiLog(
-        requestUrl,
-        'GET',
-        response.status,
-        responseText
-      );
+      try {
+        await saveApiLog(
+          requestUrl,
+          'GET',
+          response.status,
+          responseText
+        );
+      } catch (logError) {
+        console.error('Erro ao salvar log:', logError);
+      }
 
       if (!response.ok) {
         throw new Error(`Erro ao consultar a API: ${responseText}`);
@@ -328,9 +343,19 @@ const AnalystDashboard = () => {
 
     } catch (error) {
       console.error('Erro completo na requisição:', error);
+      
+      let errorMessage = "Erro ao consultar boletos. ";
+      if (error instanceof Error) {
+        errorMessage += error.message;
+        
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage += "\nPossível erro de CORS. Verifique se a API está acessível e permite requisições do nosso domínio.";
+        }
+      }
+
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao consultar boletos. Verifique suas configurações.",
+        description: errorMessage,
         variant: "destructive",
       });
       setBoletos([]);
